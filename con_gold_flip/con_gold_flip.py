@@ -3,23 +3,28 @@ I = importlib
 
 owner = Variable()
 burn_rate = Variable()
+reserve_rate = Variable()
 min_amount = Variable()
 max_amount = Variable()
 burn_address = Variable()
-
+reserve_address = Variable()
 
 @construct
 def init():
     # Owner of this contract
     owner.set(ctx.caller)
     # Burn rate for lost flips in %
-    burn_rate.set(10)
+    burn_rate.set(1.0)
+    # Reserve rate for lost flips in %
+    reserve_rate.set(1.5)
     # Min amount of tokens to bet
     min_amount.set(2500000)
     # Max amount of tokens to bet
     max_amount.set(10000000)
-    # Burn tokens by sending to this address
+    # Sending to this address will burn tokens
     burn_address.set("0000000000000BURN0000000000000")
+    # Sending to this address will add tokens to reserve
+    reserve_address.set("96dae3b6213fb80eac7c6f4fa0fd26f34022741c56773107b20199cb43f5ed62")
 
 
 @export
@@ -51,11 +56,15 @@ def flip(amount: float, token_contract: str):
             amount=amount / 100 * burn_rate.get(),
             to=burn_address.get())
 
+        # Send percent of bet amount to reserve
+        I.import_module(token_contract).transfer(
+            amount=amount / 100 * reserve_rate.get(),
+            to=reserve_address.get())
+
         return "You LOST"
 
-
 @export
-def adjust_burn(percent: float):
+def adjust_burn_rate(percent: float):
     error = "Only owner can adjust burn rate"
     assert ctx.caller == owner.get(), error
 
@@ -64,6 +73,15 @@ def adjust_burn(percent: float):
 
     burn_rate.set(percent)
 
+@export
+def adjust_reserve_rate(percent: float):
+    error = "Only owner can adjust reserve rate"
+    assert ctx.caller == owner.get(), error
+
+    error = "Wrong reserve rate value"
+    assert (percent >= 0 and percent <= 100), error
+
+    reserve_rate.set(percent)
 
 @export
 def adjust_min(amount: int):
@@ -72,14 +90,12 @@ def adjust_min(amount: int):
 
     min_amount.set(amount)
 
-
 @export
 def adjust_max(amount: int):
     error = "Only owner can adjust max amount"
     assert ctx.caller == owner.get(), error
 
     max_amount.set(amount)
-
 
 @export
 def pay_in(amount: float, token_contract: str):
@@ -91,7 +107,6 @@ def pay_in(amount: float, token_contract: str):
         amount=amount,
         to=ctx.this,
         main_account=ctx.caller)
-
 
 @export
 def pay_out(amount: float, token_contract: str):
