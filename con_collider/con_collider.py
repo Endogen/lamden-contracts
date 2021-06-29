@@ -7,13 +7,15 @@ random.seed()
 owner = Variable()
 min_amount = Variable()
 max_amount = Variable()
+payout_factor = Variable()
 
 
 @construct
 def init():
     owner.set(ctx.caller)
     min_amount.set(15)
-    max_amount.set(50)
+    max_amount.set(150)
+    payout_factor.set(1.1)
 
 @export
 def collide(amount: float):
@@ -33,7 +35,7 @@ def collide(amount: float):
         foreign_name='prices')
 
     lhc_price = rswp_prices["con_collider_contract"]
-    lhc_amount = amount / lhc_price
+    lhc_amount = (amount / lhc_price) * payout_factor.get()
 
     if random.choice([True, False]):
         tau.transfer(
@@ -104,3 +106,10 @@ def set_max(amount: float):
     assert owner.get() == ctx.caller, error
 
     max_amount.set(amount)
+
+@export
+def set_payout_factor(factor: float):
+    error = "Only the owner can payout factor"
+    assert owner.get() == ctx.caller, error
+
+    payout_factor.set(factor)
