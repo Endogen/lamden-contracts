@@ -134,6 +134,7 @@ def burn_neb(amount: float):
     assert balances[ctx.caller] >= amount, 'Not enough coins to burn!'
 
     balances[ctx.caller] -= amount
+    balances[BURN_ADDRESS] += amount
 
 # ------ VAULT ------
 
