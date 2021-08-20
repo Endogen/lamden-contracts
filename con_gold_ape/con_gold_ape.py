@@ -1,6 +1,3 @@
-# Sender needs to approve contract to spend GOLD
-# Set stamps for subscribe() & unsubscribe() to 70
-
 import currency as tau
 import con_gold_contract as gold
 
@@ -29,6 +26,9 @@ def subscribe():
 
 @export
 def unsubscribe():
+    if data[ctx.caller] == 0:
+        return 0
+
     time_delta = now - data[ctx.caller, "start"]
 
     if time_delta <= datetime.timedelta(days=30):
@@ -46,10 +46,10 @@ def unsubscribe():
     amount_delta = data[ctx.caller] - payout
 
     # Burn half or remaining amount
-    gold.transfer(amount=(amount_delta / 2), to=burn.get())
+    gold.transfer(amount=int(amount_delta / 2), to=burn.get())
 
     # Send other half to reserve
-    gold.transfer(amount=(amount_delta - (amount_delta / 2)), to=reserve.get())
+    gold.transfer(amount=int(amount_delta - (amount_delta / 2)), to=reserve.get())
  
     data[ctx.caller] = 0
 
