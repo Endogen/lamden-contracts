@@ -12,6 +12,7 @@ total_supply = Variable()
 SWAP_FACTOR = 0.01
 BURN_ADDRESS = 'NEBULA_BURN_ADDRESS'
 INTERNAL_VAULT = 'internal_neb_vault'
+GOLD_CONTRACT = 'con_test_gold_contract'
 SWAP_END_DATE = now + datetime.timedelta(days=1)
 OPERATORS = [
     'ae7d14d6d9b8443f881ba6244727b69b681010e782d4fe482dbfb0b6aca02d5d',
@@ -118,7 +119,7 @@ def swap_gold(amount: float):
     assert swap_allowed.get() == True, 'Swapping GOLD for NEB currently disabled'
     assert amount > 0, 'Cannot swap negative balances!'
 
-    gold = I.import_module('con_test_gold_contract')
+    gold = I.import_module(GOLD_CONTRACT)
     gold.transfer_from(amount=amount, to=BURN_ADDRESS, main_account=ctx.caller)
 
     swap_amount = amount * SWAP_FACTOR
