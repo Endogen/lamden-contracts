@@ -1,5 +1,3 @@
-I = importlib
-
 balances = Hash(default_value=0)
 metadata = Hash()
 
@@ -8,12 +6,12 @@ swap_allowed = Variable()
 vault_contract = Variable()
 tax_blacklist = Variable()
 total_supply = Variable()
+swap_end_date = Variable()
 
 SWAP_FACTOR = 0.01
 BURN_ADDRESS = 'NEBULA_BURN_ADDRESS'
-INTERNAL_VAULT = 'internal_neb_vault'
-GOLD_CONTRACT = 'con_test_gold_contract'
-SWAP_END_DATE = now + datetime.timedelta(days=1)
+INTERNAL_VAULT = 'INTERNAL_NEB_VAULT'
+GOLD_CONTRACT = 'con_gold_contract'
 OPERATORS = [
     'ae7d14d6d9b8443f881ba6244727b69b681010e782d4fe482dbfb0b6aca02d5d',
     'e787ed5907742fa8d50b3ca2701ab8e03ec749ced806a15cdab800a127d7f863'
@@ -23,13 +21,14 @@ OPERATORS = [
 def seed():
     balances[ctx.caller] = 0
 
-    metadata['token_name'] = "Test-Nebula"
-    metadata['token_symbol'] = "TNEB"
+    metadata['token_name'] = "Nebula"
+    metadata['token_symbol'] = "NEB"
     metadata['operator'] = ctx.caller
 
-    tax_percent.set(1)
+    tax_percent.set(2)
     swap_allowed.set(False)
-    tax_blacklist.set([])
+    tax_blacklist.set(['con_rocketswap_official_v1_1'])
+    swap_end_date.set(now + datetime.timedelta(days=120))
     vault_contract.set('')
     total_supply.set(0)
 
@@ -115,11 +114,11 @@ def remove_from_tax_blacklist(recipient: str):
 
 @export
 def swap_gold(amount: float):
-    assert now < SWAP_END_DATE, 'Swap period ended'
+    assert now < swap_end_date.get(), 'Swap period ended'
     assert swap_allowed.get() == True, 'Swapping GOLD for NEB currently disabled'
     assert amount > 0, 'Cannot swap negative balances!'
 
-    gold = I.import_module(GOLD_CONTRACT)
+    gold = importlib.import_module(GOLD_CONTRACT)
     gold.transfer_from(amount=amount, to=BURN_ADDRESS, main_account=ctx.caller)
 
     swap_amount = amount * SWAP_FACTOR
@@ -137,6 +136,10 @@ def enable_swap():
 def disable_swap():
     assert_owner()
     swap_allowed.set(False)
+
+@export
+def time_until_swap_end():
+    return swap_end_date.get() - now
 
 # ------ BURNING ------
 
