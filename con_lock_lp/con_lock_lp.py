@@ -7,7 +7,6 @@ def lock_lp(contract: str, amount: float, lock_time_in_days: int):
     assert amount > 0, "Negative amount not allowed!"
     assert lock_time_in_days > 0, "Negative lock time not allowed!"
 
-    lock_time = datetime.timedelta(days=lock_time_in_days)
     lock_id = hashlib.sha256(f"{ctx.caller}{now}")
     
     rswp.transfer_liquidity_from(
