@@ -137,12 +137,12 @@ def emergency_withdraw(contract: str, amount: float):
     importlib.import_module(contract).transfer(amount, ctx.caller)
 
 @export
-def pay_back_creator_fee():
+def pay_back_locked_creator_tokens():
     assert_active()
 
     assert now > end_date.get(), f'End date not reached: {end_date.get()}'
     assert creator_addr.get() == ctx.caller, 'You are not the vault creator!'
-    assert creator_lock.get() > 0, 'No dev funds locked!'
+    assert creator_lock.get() > 0, 'No creator funds locked!'
     
     # Pay back locked fund to creator
     importlib.import_module(emission_con.get()).transfer(
