@@ -1,3 +1,5 @@
+import importlib as I
+
 staking = Hash(default_value=0)
 
 stake_con = Variable()
@@ -20,6 +22,8 @@ start_date_end = Variable()
 end_date = Variable()
 
 NEB_FEE = 2
+NEB_CONTRACT = 'con_nebula'
+
 OPERATORS = [
     'ae7d14d6d9b8443f881ba6244727b69b681010e782d4fe482dbfb0b6aca02d5d',
     'e787ed5907742fa8d50b3ca2701ab8e03ec749ced806a15cdab800a127d7f863'
@@ -27,15 +31,16 @@ OPERATORS = [
 
 @export
 def fund_vault(stake_contract: str, emission_contract: str, total_emission_amount: float, total_stake_amount: float,
-               minutes_till_start: int, start_period_in_minutes: int, minutes_till_end: int, creator_lock_amount: float, max_single_stake_percent: float):
+               minutes_till_start: int, start_period_in_minutes: int, minutes_till_end: int, 
+               creator_lock_amount: float, max_single_stake_percent: float):
     
     assert funded.get() != True, 'Vault is already funded!'
     assert total_emission_amount > 0, 'total_emission_amount not valid!'
     assert total_stake_amount > 0, 'total_stake_amount not valid!'
     assert minutes_till_start > 0, 'minutes_till_start not valid!'
     assert start_period_in_minutes >= 2880, 'Staking needs to be open for at least 2 days!'
-    assert minutes_till_end > 0, 'minutes_till_end not valid!'
-    assert creator_lock_amount >= 0, 'dev_fee not valid!'
+    assert minutes_till_end > 0 and minutes_till_end <= 129600, 'minutes_till_end not valid!'
+    assert creator_lock_amount >= 0, 'creator_lock_amount not valid!'
     assert max_single_stake_percent > 0, 'max_single_stake_percent not valid!'
 
     creator_addr.set(ctx.caller)
@@ -53,14 +58,14 @@ def fund_vault(stake_contract: str, emission_contract: str, total_emission_amoun
     start_date_end.set(start_date.get() + datetime.timedelta(minutes=start_period_in_minutes))
     end_date.set(start_date_end.get() + datetime.timedelta(minutes=minutes_till_end))
 
-    vault = ForeignVariable(foreign_contract='con_nebula', foreign_name='vault_contract')
+    vault = ForeignVariable(NEB_CONTRACT, 'vault_contract')
 
     if not vault.get():
         vault = Variable()
         vault.set('INTERNAL_NEB_VAULT')
 
     # Pay Nebula fee
-    importlib.import_module(emission_con.get()).transfer_from(
+    I.import_module(emission_con.get()).transfer_from(
         amount=total_emission.get() / 100 * NEB_FEE,
         main_account=ctx.caller,
         to=vault.get())
@@ -77,7 +82,7 @@ def fund_vault(stake_contract: str, emission_contract: str, total_emission_amoun
 
 @export
 def send_to_vault(contract: str, amount: float):
-    importlib.import_module(contract).transfer_from(
+    I.import_module(contract).transfer_from(
         main_account=ctx.caller,
         amount=amount,
         to=ctx.this)
@@ -108,12 +113,12 @@ def unstake():
     user_emission = total_emission.get() / 100 * stake_percent
 
     # Pay emissions to user
-    importlib.import_module(emission_con.get()).transfer(
+    I.import_module(emission_con.get()).transfer(
         amount=user_emission,
         to=ctx.caller)
 
     # Pay stake to user
-    importlib.import_module(stake_con.get()).transfer(
+    I.import_module(stake_con.get()).transfer(
         amount=staking[ctx.caller],
         to=ctx.caller)
 
@@ -123,18 +128,18 @@ def unstake():
 
 @export
 def enable_vault():
-    assert_owner()
     active.set(True)
+    assert_owner()
 
 @export
 def disable_vault():
-    assert_owner()
     active.set(False)
+    assert_owner()
 
 @export
 def emergency_withdraw(contract: str, amount: float):
+    I.import_module(contract).transfer(amount, ctx.caller)
     assert_owner()
-    importlib.import_module(contract).transfer(amount, ctx.caller)
 
 @export
 def pay_back_locked_creator_tokens():
@@ -145,7 +150,7 @@ def pay_back_locked_creator_tokens():
     assert creator_lock.get() > 0, 'No creator funds locked!'
     
     # Pay back locked fund to creator
-    importlib.import_module(emission_con.get()).transfer(
+    I.import_module(emission_con.get()).transfer(
         amount=creator_lock.get(),
         to=creator_addr.get())
 
