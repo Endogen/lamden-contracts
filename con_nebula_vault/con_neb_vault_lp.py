@@ -45,6 +45,8 @@ def get_level(address: str):
         if (lp_stake >= level_lp) and (key_stake >= level_key):
             return level
 
+    return {'level': 0, 'lp': 0, 'key': 0, 'emission': 0}
+
 @export
 def stake(neb_lp_amount: float, neb_key_amount: int):
     assert_active()
@@ -66,9 +68,6 @@ def unstake(neb_lp_amount: float, neb_key_amount: int):
     lp_staked = staking[ctx.caller, 'lp']
     key_staked = staking[ctx.caller, 'key']
 
-    assert neb_lp_amount <= lp_staked, f'NEB LP staked: {lp_staked}'
-    assert neb_key_amount <= key_staked, f'NEB KEY staked: {key_staked}'
-
     highest_lp_lock = 0
     highest_key_lock = 0
 
@@ -87,8 +86,8 @@ def unstake(neb_lp_amount: float, neb_key_amount: int):
     lp_available = lp_staked - highest_lp_lock
     key_available = key_staked - highest_key_lock
 
-    assert lp_available >= neb_lp_amount, f'NEB LP available to unstake: {lp_available}'
-    assert key_available >= neb_key_amount, f'NEB KEY available to unstake: {key_available}'
+    assert lp_available >= neb_lp_amount, f'Only {lp_available} NEB LP available to unstake'
+    assert key_available >= neb_key_amount, f'Only {key_available} NEB KEY available to unstake'
 
     if neb_lp_amount > 0:
         rswp.transfer_liquidity(neb_contract.get(), dex_contract.get(), neb_lp_amount)
