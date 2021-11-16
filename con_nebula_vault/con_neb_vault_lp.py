@@ -1,5 +1,4 @@
-import con_rocketswap_official_v1_1 as rswp
-import con_neb_key001 as key
+I = importlib
 
 staking = Hash(default_value=0)
 locking = Hash(default_value=0)
@@ -7,9 +6,10 @@ levels = Hash(default_value=0)
 
 active = Variable()
 
-neb_contract = Variable()
-dex_contract = Variable()
-proxy_contract = Variable()
+NEB_CONTRACT = 'con_nebula'
+KEY_CONTRACT = 'con_neb_key001'
+DEX_CONTRACT = 'con_rocketswap_official_v1_1'
+PROXY_CONTRACT = 'con_neb_vault_proxy_001'
 
 OPERATORS = [
     'ae7d14d6d9b8443f881ba6244727b69b681010e782d4fe482dbfb0b6aca02d5d',
@@ -18,10 +18,6 @@ OPERATORS = [
 
 @construct
 def seed():
-    neb_contract.set('con_nebula')
-    dex_contract.set('con_rocketswap_official_v1_1')
-    proxy_contract.set('con_neb_vault_proxy_001')
-
     levels[1] = {'level': 1, 'lp': 0,     'key': 0, 'emission': 0.375}
     levels[2] = {'level': 2, 'lp': 18.75, 'key': 0, 'emission': 0.75}
     levels[3] = {'level': 3, 'lp': 0,     'key': 1, 'emission': 1}
@@ -37,13 +33,14 @@ def get_level(address: str):
     key_stake = staking[address, 'key']
 
     for i in range(10, 0, -1):
-        level = levels[i]
+        if i in levels:
+            level = levels[i]
 
-        level_lp = level['lp']
-        level_key = level['key']
+            level_lp = level['lp']
+            level_key = level['key']
 
-        if (lp_stake >= level_lp) and (key_stake >= level_key):
-            return level
+            if (lp_stake >= level_lp) and (key_stake >= level_key):
+                return level
 
     return {'level': 0, 'lp': 0, 'key': 0, 'emission': 0}
 
@@ -54,12 +51,21 @@ def stake(neb_lp_amount: float, neb_key_amount: int):
     if neb_lp_amount > 0:
         staking['lp'] += neb_lp_amount
         staking[ctx.caller, 'lp'] += neb_lp_amount
-        rswp.transfer_liquidity_from(neb_contract.get(), ctx.this, dex_contract.get(), neb_lp_amount)
+
+        I.import_module(DEX_CONTRACT).transfer_liquidity_from(
+            contract=NEB_CONTRACT, 
+            to=ctx.this, 
+            main_account=DEX_CONTRACT, 
+            amount=neb_lp_amount)
     
     if neb_key_amount > 0:
         staking['key'] += neb_key_amount
         staking[ctx.caller, 'key'] += neb_key_amount
-        key.transfer_from(neb_key_amount, ctx.this, ctx.caller)
+
+        I.import_module(KEY_CONTRACT).transfer_from(
+            main_account=ctx.caller,
+            amount=neb_key_amount,
+            to=ctx.this)
 
 @export
 def unstake(neb_lp_amount: float, neb_key_amount: int):
@@ -90,10 +96,15 @@ def unstake(neb_lp_amount: float, neb_key_amount: int):
     assert key_available >= neb_key_amount, f'Only {key_available} NEB KEY available to unstake'
 
     if neb_lp_amount > 0:
-        rswp.transfer_liquidity(neb_contract.get(), dex_contract.get(), neb_lp_amount)
+        I.import_module(DEX_CONTRACT).transfer_liquidity(
+            contract=NEB_CONTRACT, 
+            to=DEX_CONTRACT, 
+            amount=neb_lp_amount)
 
     if neb_key_amount > 0:
-        key.transfer(neb_key_amount, ctx.caller)
+        I.import_module(KEY_CONTRACT).transfer(
+            amount=neb_key_amount,
+            to=ctx.caller)
 
     # Remove from user stake
     staking[ctx.caller, 'lp'] -= neb_lp_amount
@@ -106,7 +117,7 @@ def unstake(neb_lp_amount: float, neb_key_amount: int):
 # Vault contract needs to call 'lock'
 @export
 def lock(neb_lp_amount: float, neb_key_amount: int):
-    assert ctx.caller in ForeignVariable(proxy_contract.get(), 'contracts'), f'Unknown contract {ctx.caller}'
+    assert ctx.caller in ForeignVariable(PROXY_CONTRACT, 'contracts'), f'Unknown contract {ctx.caller}'
 
     if not isinstance(locking[ctx.signer], list):
         locking[ctx.signer] = []        
@@ -121,7 +132,7 @@ def lock(neb_lp_amount: float, neb_key_amount: int):
 # Vault contract needs to call 'unlock'
 @export
 def unlock():
-    assert ctx.caller in ForeignVariable(proxy_contract.get(), 'contracts'), f'Unknown contract {ctx.caller}'
+    assert ctx.caller in ForeignVariable(PROXY_CONTRACT, 'contracts'), f'Unknown contract {ctx.caller}'
 
     lock_list = locking[ctx.signer]
     
@@ -139,39 +150,24 @@ def set_levels(level: int, data: dict):
     assert_owner()
 
 @export
-def set_neb_contract(contract_name: str):
-    neb_contract.set(contract_name)
-    assert_owner()
-
-@export
-def set_dex_contract(contract_name: str):
-    dex_contract.set(contract_name)
-    assert_owner()
-
-@export
-def set_proxy_contract(contract_name: str):
-    proxy_contract.set(contract_name)
-    assert_owner()
-
-@export
 def emergency_withdraw_token(contract_name: str, amount: float):
-    importlib.import_module(contract_name).transfer(amount, ctx.caller)
+    I.import_module(contract_name).transfer(amount, ctx.caller)
     assert_owner()
 
 @export
 def emergency_withdraw_lp(contract_name: str, amount: float):
-    rswp.transfer_liquidity(contract_name, dex_contract.get(), amount)
+    I.import_module(DEX_CONTRACT).transfer_liquidity(contract_name, DEX_CONTRACT, amount)
     assert_owner()
 
 @export
 def enable_vault():
-    assert_owner()
     active.set(True)
+    assert_owner()
 
 @export
 def disable_vault():
-    assert_owner()
     active.set(False)
+    assert_owner()
 
 def assert_active():
     assert active.get() == True, 'Vault inactive!'
