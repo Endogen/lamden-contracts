@@ -1,4 +1,4 @@
-import importlib as I
+I = importlib
 
 staking = Hash(default_value=0)
 
@@ -93,7 +93,7 @@ def unstake():
     stake_percent = staking[ctx.caller] / current_stake.get() * 100
     user_emission = total_emission.get() / 100 * stake_percent
 
-    # Pay emissions to user
+    # Pay emission to user
     I.import_module(emission_con.get()).transfer(
         amount=user_emission,
         to=ctx.caller)
