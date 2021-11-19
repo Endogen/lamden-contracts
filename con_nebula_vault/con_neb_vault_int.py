@@ -2,7 +2,6 @@ I = importlib
 
 staking = Hash(default_value=0)
 
-stake_con = Variable()
 emission_con = Variable()
 
 total_emission = Variable()
@@ -17,10 +16,11 @@ start_date = Variable()
 start_date_end = Variable()
 end_date = Variable()
 
-lp_vault_contract = Variable()
-
 NEB_FEE = 2
 NEB_CONTRACT = 'con_nebula'
+LP_VAULT = 'con_neb_vault_lp_001'
+MIN_STAKE_PERIOD = 2880
+MAX_RUNTIME = 129600
 
 OPERATORS = [
     'ae7d14d6d9b8443f881ba6244727b69b681010e782d4fe482dbfb0b6aca02d5d',
@@ -35,10 +35,9 @@ def fund_vault(emission_contract: str, total_emission_amount: float, total_stake
     assert total_emission_amount > 0, 'total_emission_amount not valid!'
     assert total_stake_amount > 0, 'total_stake_amount not valid!'
     assert minutes_till_start > 0, 'minutes_till_start not valid!'
-    assert start_period_in_minutes >= 2880, 'Staking needs to be open for at least 2 days!'
-    assert minutes_till_end > 0 and minutes_till_end <= 129600, 'minutes_till_end not valid!'
+    assert start_period_in_minutes >= MIN_STAKE_PERIOD, 'Staking needs to be open for at least 2 days!'
+    assert minutes_till_end > 0 and minutes_till_end <= MAX_RUNTIME, 'minutes_till_end not valid!'
 
-    stake_con.set(NEB_CONTRACT)
     emission_con.set(emission_contract)
 
     current_stake.set(0)
@@ -65,23 +64,30 @@ def fund_vault(emission_contract: str, total_emission_amount: float, total_stake
     funded.set(True)
 
 @export
+def send_to_vault(contract: str, amount: float):
+    I.import_module(contract).transfer_from(
+        main_account=ctx.caller,
+        amount=amount,
+        to=ctx.this)
+
+@export
 def stake(neb_amount: float):
     assert_active()
 
     assert now > start_date.get(), f'Staking not started yet: {start_date.get()}'
     assert now < start_date_end.get(), f'Staking period ended: {start_date_end.get()}'
-    assert lp_vault_contract.get(), 'Nebula LP vault contract not set'
 
     staking[ctx.caller] += neb_amount
+    send_to_vault(NEB_CONTRACT, neb_amount)
     current_stake.set(current_stake.get() + neb_amount)
 
-    level = I.import_module(lp_vault_contract.get()).get_level(ctx.caller)
+    level = I.import_module(LP_VAULT).get_level(ctx.caller)
     max_stake = total_stake.get() / 100 * level['emission']
 
-    assert staking[ctx.caller] <= max_stake, f'Max stake exceeded: {max_stake} NEB'
+    assert staking[ctx.caller] <= max_stake, f'Max stake exceeded: {max_stake} NEB (Level {level["level"]})'
     assert current_stake.get() <= total_stake.get(), f'Max total stake exceeded: {total_stake.get()} NEB'
 
-    I.import_module(lp_vault_contract.get()).lock(level['lp'], level['key'])
+    I.import_module(LP_VAULT).lock(level['lp'], level['key'])
 
 @export
 def unstake():
@@ -99,20 +105,15 @@ def unstake():
         to=ctx.caller)
 
     # Pay stake to user
-    I.import_module(stake_con.get()).transfer(
+    I.import_module(NEB_CONTRACT).transfer(
         amount=staking[ctx.caller],
         to=ctx.caller)
 
     staking[ctx.caller] = 0
 
-    I.import_module(lp_vault_contract.get()).unlock()
+    I.import_module(LP_VAULT).unlock()
 
     return f'Emission: {user_emission} {emission_con.get()}'
-
-@export
-def set_lp_vault_contract(contract_name: str):
-    lp_vault_contract.set(contract_name)
-    assert_owner()
 
 @export
 def enable_vault():
