@@ -3,7 +3,6 @@ I = importlib
 staking = Hash(default_value=0)
 
 emission_con = Variable()
-
 total_emission = Variable()
 
 total_stake = Variable()
@@ -12,7 +11,7 @@ current_stake = Variable()
 active = Variable()
 funded = Variable()
 
-start_date = Variable()
+start_date = Variable() 
 start_date_end = Variable()
 end_date = Variable()
 
@@ -50,14 +49,12 @@ def fund_vault(emission_contract: str, total_emission_amount: float, total_stake
 
     single_fee = (total_emission.get() / 100 * NEB_FEE) / len(OPERATORS)
 
-    # Pay Nebula fee
     for address in OPERATORS:
         I.import_module(emission_con.get()).transfer_from(
             main_account=ctx.caller,
             amount=single_fee,
             to=address)
 
-    # Pay total emission amount
     send_to_vault(emission_con.get(), total_emission.get())
 
     active.set(True)
@@ -99,12 +96,10 @@ def unstake():
     stake_percent = staking[ctx.caller] / current_stake.get() * 100
     user_emission = total_emission.get() / 100 * stake_percent
 
-    # Pay emission to user
     I.import_module(emission_con.get()).transfer(
         amount=user_emission,
         to=ctx.caller)
 
-    # Pay stake to user
     I.import_module(NEB_CONTRACT).transfer(
         amount=staking[ctx.caller],
         to=ctx.caller)

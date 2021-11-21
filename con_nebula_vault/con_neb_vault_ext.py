@@ -32,7 +32,7 @@ OPERATORS = [
 ]
 
 @export
-def fund_vault(stake_contract: str, emission_contract: str, total_emission_amount: float, total_stake_amount: float,
+def fund_vault(stake_contract: str, total_stake_amount: float, emission_contract: str, total_emission_amount: float, 
                minutes_till_start: int, start_period_in_minutes: int, minutes_till_end: int, 
                creator_lock_amount: float, max_single_stake_percent: float):
     
