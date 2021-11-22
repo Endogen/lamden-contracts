@@ -78,13 +78,12 @@ def stake(neb_amount: float):
     send_to_vault(NEB_CONTRACT, neb_amount)
     current_stake.set(current_stake.get() + neb_amount)
 
-    level = I.import_module(LP_VAULT).get_level(ctx.caller)
+    level = I.import_module(LP_VAULT).lock()
+
     max_stake = total_stake.get() / 100 * level['emission']
 
     assert staking[ctx.caller] <= max_stake, f'Max stake exceeded: {max_stake} NEB (Level {level["level"]})'
     assert current_stake.get() <= total_stake.get(), f'Max total stake exceeded: {total_stake.get()} NEB'
-
-    I.import_module(LP_VAULT).lock(level['lp'], level['key'])
 
 @export
 def unstake():
@@ -104,7 +103,7 @@ def unstake():
         amount=staking[ctx.caller],
         to=ctx.caller)
 
-    staking[ctx.caller] = 0
+    staking.clear(ctx.caller)
 
     I.import_module(LP_VAULT).unlock()
 

@@ -33,15 +33,19 @@ def get_level(address: str):
     lp_stake = staking[address, 'lp']
     key_stake = staking[address, 'key']
 
+    return get_level_from_amount(lp_stake, key_stake)
+
+@export
+def get_level_from_amount(lp_amount: float, key_amount: int):
     for i in range(10, 0, -1):
         if levels[i] == 0:
             continue
         
         level = levels[i]
-        if (lp_stake >= level['lp']) and (key_stake >= level['key']):
+        if (lp_amount >= level['lp']) and (key_amount >= level['key']):
             return level
 
-    return {'level': 0, 'lp': 0, 'key': 0, 'emission': 0}
+    return levels[1]
 
 @export
 def show_level(address: str):
@@ -75,25 +79,24 @@ def stake(neb_lp_amount: float = 0, neb_key_amount: int = 0):
 def unstake(neb_lp_amount: float = 0, neb_key_amount: int = 0):
     assert_active()
 
-    lp_staked = staking[ctx.caller, 'lp']
-    key_staked = staking[ctx.caller, 'key']
+    staked_lp = staking[ctx.caller, 'lp']
+    staked_key = staking[ctx.caller, 'key']
 
-    highest_lp_lock = 0
-    highest_key_lock = 0
+    current_level = get_level_from_amount(staked_lp, staked_key)['level']
+    highest_level = 1
 
     if isinstance(locking[ctx.caller], list):
         for lock_contract in locking[ctx.caller]:
-            lp_lock = locking[ctx.caller, lock_contract, 'lp']
-            key_lock = locking[ctx.caller, lock_contract, 'key']
+            locked_level = locking[ctx.caller, lock_contract, 'level']
 
-            if lp_lock > highest_lp_lock:
-                highest_lp_lock = lp_lock
+            if locked_level > highest_level:
+                highest_level = locked_level
 
-            if key_lock > highest_key_lock:
-                highest_key_lock = key_lock
+    locked_lp = levels[highest_level]['lp']
+    locked_key = levels[highest_level]['key']
 
-    lp_available = lp_staked - highest_lp_lock
-    key_available = key_staked - highest_key_lock
+    lp_available = staked_lp - locked_lp
+    key_available = staked_key - locked_key
 
     assert lp_available >= neb_lp_amount, f'Only {lp_available} NEB LP available to unstake'
     assert key_available >= neb_key_amount, f'Only {key_available} NEB KEY available to unstake'
@@ -116,7 +119,7 @@ def unstake(neb_lp_amount: float = 0, neb_key_amount: int = 0):
     staking['key'] -= neb_key_amount
 
 @export
-def lock(neb_lp_amount: float, neb_key_amount: int):
+def lock():
     trusted = ForeignVariable(foreign_contract=con['prx'], foreign_name='contracts')
     assert ctx.caller in trusted.get(), f'Unknown contract {ctx.caller}'
 
@@ -130,8 +133,11 @@ def lock(neb_lp_amount: float, neb_key_amount: int):
 
     locking[ctx.signer] = lock_list
 
-    locking[ctx.signer, ctx.caller, 'lp'] += neb_lp_amount
-    locking[ctx.signer, ctx.caller, 'key'] += neb_key_amount
+    level = get_level(ctx.signer)
+
+    locking[ctx.signer, ctx.caller, 'level'] = level['level']
+
+    return level
 
 @export
 def unlock():
@@ -144,9 +150,7 @@ def unlock():
         lock_list.remove(ctx.caller)
     
     locking[ctx.signer] = lock_list
-
-    locking[ctx.signer, ctx.caller, 'lp'] = 0
-    locking[ctx.signer, ctx.caller, 'key'] = 0
+    locking.clear(ctx.signer, ctx.caller)
 
 @export
 def set_contract(key: str, value: str):
