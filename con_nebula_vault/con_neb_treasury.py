@@ -1,9 +1,14 @@
+# NEBULA TREASURY
+
 I = importlib
 
+dex = Variable()
 owners = Variable()
 
 @construct
 def seed():
+    dex.set('con_rocketswap_official_v1_1')
+
     owners.set([
         'ae7d14d6d9b8443f881ba6244727b69b681010e782d4fe482dbfb0b6aca02d5d',
         'e787ed5907742fa8d50b3ca2701ab8e03ec749ced806a15cdab800a127d7f863'
@@ -29,28 +34,30 @@ def remove_owner(address: str):
         owner_list.remove(address)
         owners.set(owner_list)
 
-# TODO: Wieso bekomme ich "Not enough coins" Error?
 @export
-def withdraw_token(contract: str, amount: float, to: str = ''):
-    I.import_module(contract).transfer(amount, validate(determine(to)))
+def send_token(token_contract: str, amount: float, to: str):
+    I.import_module(token_contract).transfer(amount, to)
     assert_owner()
 
 @export
-def withdraw_lp(contract: str, amount: float, to: str = ''):
-    I.import_module(con['dex']).transfer_liquidity(contract, validate(determine(to)), amount)w21q                       
+def send_token_to_me(token_contract: str, amount: float):
+    I.import_module(token_contract).transfer(amount, ctx.caller)
     assert_owner()
 
-def validate(recipient: str):
-    if recipient.lower().startswith("con_"):
-        assert len(recipient) == 64, 'Address is not valid!'
-        # Runs into ImportError
-        assert I.import_module(recipient), 'Contract does not exist!'
-    else:
-        # Runs into ValueError
-        assert int(recipient, 16), 'Address is not a valid hex (base 16) string!'
+@export
+def send_lp(token_contract: str, amount: float, to: str):
+    I.import_module(dex.get()).transfer_liquidity(token_contract, to, amount)
+    assert_owner()
 
-def determine(address: str):
-    return address if address else ctx.caller
+@export
+def send_lp_to_me(token_contract: str, amount: float):
+    I.import_module(dex.get()).transfer_liquidity(token_contract, ctx.caller, amount)
+    assert_owner()
+
+@export
+def set_dex_contract(dex_contract: str):
+    dex.set(dex_contract)
+    assert_owner()
 
 def assert_owner():
     assert ctx.caller in owners.get(), 'Only executable by Nebula (NEB) team!'
