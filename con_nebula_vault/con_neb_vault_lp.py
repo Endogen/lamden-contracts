@@ -1,3 +1,11 @@
+#  _   _      _           _         _      _____   __      __         _ _   
+# | \ | |    | |         | |       | |    |  __ \  \ \    / /        | | |  
+# |  \| | ___| |__  _   _| | __ _  | |    | |__) |  \ \  / /_ _ _   _| | |_ 
+# | . ` |/ _ \ '_ \| | | | |/ _` | | |    |  ___/    \ \/ / _` | | | | | __|
+# | |\  |  __/ |_) | |_| | | (_| | | |____| |         \  / (_| | |_| | | |_ 
+# |_| \_|\___|_.__/ \__,_|_|\__,_| |______|_|          \/ \__,_|\__,_|_|\__|
+#                                                                           
+
 I = importlib
 
 staking = Hash(default_value=0)
@@ -5,7 +13,10 @@ locking = Hash(default_value=0)
 levels = Hash(default_value=0)
 con = Hash(default_value='')
 
+trusted = Variable()
 active = Variable()
+
+VALIDATOR = '9a12554c2098567d22aaa9b787d73b606d2f2044a602186c3b9af65f6c58cfaf'
 
 OPERATORS = [
     'ae7d14d6d9b8443f881ba6244727b69b681010e782d4fe482dbfb0b6aca02d5d',
@@ -16,7 +27,6 @@ OPERATORS = [
 def seed():
     con['neb'] = 'con_nebula'
     con['key'] = 'con_neb_key001'
-    con['prx'] = 'con_neb_vault_proxy_001'
     con['dex'] = 'con_rocketswap_official_v1_1'
 
     levels[1] = {'level': 1, 'lp': 0,     'key': 0, 'emission': 0.375}
@@ -26,6 +36,7 @@ def seed():
     levels[5] = {'level': 5, 'lp': 75,    'key': 0, 'emission': 3}
     levels[6] = {'level': 6, 'lp': 150,   'key': 0, 'emission': 4}
 
+    trusted.set([])
     active.set(True)
 
 @export
@@ -82,12 +93,11 @@ def unstake(neb_lp_amount: float = 0, neb_key_amount: int = 0):
     staked_lp = staking[ctx.caller, 'lp']
     staked_key = staking[ctx.caller, 'key']
 
-    current_level = get_level_from_amount(staked_lp, staked_key)['level']
     highest_level = 1
 
     if isinstance(locking[ctx.caller], list):
         for lock_contract in locking[ctx.caller]:
-            locked_level = locking[ctx.caller, lock_contract, 'level']
+            locked_level = locking[ctx.caller, lock_contract]
 
             if locked_level > highest_level:
                 highest_level = locked_level
@@ -120,28 +130,29 @@ def unstake(neb_lp_amount: float = 0, neb_key_amount: int = 0):
 
 @export
 def lock():
-    trusted = ForeignVariable(foreign_contract=con['prx'], foreign_name='contracts')
-    assert ctx.caller in trusted.get(), f'Unknown contract {ctx.caller}'
+    user_address = ctx.signer
+    vault_contract = ctx.caller
 
-    if not isinstance(locking[ctx.signer], list):
-        locking[ctx.signer] = []        
+    assert vault_contract in trusted.get(), f'Unknown contract {vault_contract}'
 
-    lock_list = locking[ctx.signer]
+    if not isinstance(locking[user_address], list):
+        locking[user_address] = []        
 
-    if not ctx.caller in lock_list:
-        lock_list.append(ctx.caller)
+    lock_list = locking[user_address]
 
-    locking[ctx.signer] = lock_list
+    if not vault_contract in lock_list:
+        lock_list.append(vault_contract)
 
-    level = get_level(ctx.signer)
+    locking[user_address] = lock_list
 
-    locking[ctx.signer, ctx.caller, 'level'] = level['level']
+    level = get_level(user_address)
+
+    locking[user_address, vault_contract] = level['level']
 
     return level
 
 @export
 def unlock():
-    trusted = ForeignVariable(foreign_contract=con['prx'], foreign_name='contracts')
     assert ctx.caller in trusted.get(), f'Unknown contract {ctx.caller}'
 
     lock_list = locking[ctx.signer]
@@ -161,6 +172,24 @@ def set_contract(key: str, value: str):
 def set_levels(level: int, data: dict):
     levels[level] = data
     assert_owner()
+
+@export
+def add_valid_vault(contract_name: str):
+    assert ctx.caller == VALIDATOR, 'Only validator can add trusted contracts!'
+    
+    trusted_contracts = trusted.get()
+    if contract_name not in trusted_contracts:
+        trusted_contracts.append(contract_name)
+        trusted.set(trusted_contracts)
+
+@export
+def remove_valid_vault(contract_name: str):
+    assert ctx.caller == VALIDATOR, 'Only validator can remove trusted contracts!'
+    
+    trusted_contracts = trusted.get()
+    if contract_name in trusted_contracts:
+        trusted_contracts.remove(contract_name)
+        trusted.set(trusted_contracts)
 
 @export
 def emergency_withdraw_token(contract_name: str, amount: float):
