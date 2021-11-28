@@ -133,13 +133,8 @@ def unstake():
     return f'Emission: {user_emission} {emission_con.get()}'
 
 @export
-def enable_vault():
-    active.set(True)
-    assert_owner()
-
-@export
-def disable_vault():
-    active.set(False)
+def active(is_active: bool):
+    active.set(is_active)
     assert_owner()
 
 @export

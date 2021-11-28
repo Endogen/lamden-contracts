@@ -202,13 +202,8 @@ def emergency_withdraw_lp(contract_name: str, amount: float):
     assert_owner()
 
 @export
-def enable_vault():
-    active.set(True)
-    assert_owner()
-
-@export
-def disable_vault():
-    active.set(False)
+def active(is_active: bool):
+    active.set(is_active)
     assert_owner()
 
 def assert_active():
