@@ -44,16 +44,12 @@ def get_level(address: str):
     lp_stake = staking[address, 'lp']
     key_stake = staking[address, 'key']
 
-    return get_level_from_amount(lp_stake, key_stake)
-
-@export
-def get_level_from_amount(lp_amount: float, key_amount: int):
     for i in range(10, 0, -1):
         if levels[i] == 0:
             continue
         
         level = levels[i]
-        if (lp_amount >= level['lp']) and (key_amount >= level['key']):
+        if (lp_stake >= level['lp']) and (key_stake >= level['key']):
             return level
 
     return levels[1]
@@ -93,20 +89,19 @@ def unstake(neb_lp_amount: float = 0, neb_key_amount: int = 0):
     staked_lp = staking[ctx.caller, 'lp']
     staked_key = staking[ctx.caller, 'key']
 
-    highest_level = 1
+    highest_lp = 0
+    highest_key = 0
 
     if isinstance(locking[ctx.caller], list):
         for lock_contract in locking[ctx.caller]:
-            locked_level = locking[ctx.caller, lock_contract]
+            locked_lp = locking[ctx.caller, lock_contract, 'lp']
+            locked_key = locking[ctx.caller, lock_contract, 'key']
 
-            if locked_level > highest_level:
-                highest_level = locked_level
+            if locked_lp > highest_lp: highest_lp = locked_lp
+            if locked_key > highest_key: highest_key = locked_key
 
-    locked_lp = levels[highest_level]['lp']
-    locked_key = levels[highest_level]['key']
-
-    lp_available = staked_lp - locked_lp
-    key_available = staked_key - locked_key
+    lp_available = staked_lp - highest_lp
+    key_available = staked_key - highest_key
 
     assert lp_available >= neb_lp_amount, f'Only {lp_available} NEB LP available to unstake'
     assert key_available >= neb_key_amount, f'Only {key_available} NEB KEY available to unstake'
@@ -147,7 +142,8 @@ def lock():
 
     level = get_level(user_address)
 
-    locking[user_address, vault_contract] = level['level']
+    locking[user_address, vault_contract, 'lp'] = level['lp']
+    locking[user_address, vault_contract, 'key'] = level['key']
 
     return level
 
