@@ -80,6 +80,7 @@ def send_to_vault(contract: str, amount: float):
 def stake(neb_amount: float):
     assert_active()
 
+    assert neb_amount > 0, 'Negative amounts are not allowed'
     assert now > start_date.get(), f'Staking not started yet: {start_date.get()}'
     assert now < start_date_end.get(), f'Staking period ended: {start_date_end.get()}'
 
@@ -114,7 +115,7 @@ def unstake():
 
     I.import_module(LP_VAULT).unlock()
 
-    staking.clear(ctx.caller)
+    staking[ctx.caller] = 0
 
     return f'Emission: {user_emission} {emission_con.get()}'
 

@@ -63,6 +63,9 @@ def show_level(address: str):
 def stake(neb_lp_amount: float = 0, neb_key_amount: int = 0):
     assert_active()
 
+    assert neb_lp_amount > 0, 'Negative amounts are not allowed'
+    assert neb_key_amount > 0, 'Negative amounts are not allowed'
+
     if neb_lp_amount > 0:
         staking['lp'] += neb_lp_amount
         staking[ctx.caller, 'lp'] += neb_lp_amount
@@ -85,6 +88,9 @@ def stake(neb_lp_amount: float = 0, neb_key_amount: int = 0):
 @export
 def unstake(neb_lp_amount: float = 0, neb_key_amount: int = 0):
     assert_active()
+
+    assert neb_lp_amount > 0, 'Negative amounts are not allowed'
+    assert neb_key_amount > 0, 'Negative amounts are not allowed'
 
     staked_lp = staking[ctx.caller, 'lp']
     staked_key = staking[ctx.caller, 'key']
@@ -157,7 +163,9 @@ def unlock():
         lock_list.remove(ctx.caller)
     
     locking[ctx.signer] = lock_list
-    locking.clear(ctx.signer, ctx.caller)
+
+    locking[ctx.signer, ctx.caller, 'lp'] = 0
+    locking[ctx.signer, ctx.caller, 'key'] = 0
 
 @export
 def set_contract(key: str, value: str):
