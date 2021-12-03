@@ -89,8 +89,8 @@ def stake(neb_lp_amount: float = 0, neb_key_amount: int = 0):
 def unstake(neb_lp_amount: float = 0, neb_key_amount: int = 0):
     assert_active()
 
-    assert neb_lp_amount > 0, 'Negative amounts are not allowed'
-    assert neb_key_amount > 0, 'Negative amounts are not allowed'
+    assert neb_lp_amount >= 0, 'Negative amounts are not allowed'
+    assert neb_key_amount >= 0, 'Negative amounts are not allowed'
 
     staked_lp = staking[ctx.caller, 'lp']
     staked_key = staking[ctx.caller, 'key']
