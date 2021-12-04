@@ -99,9 +99,9 @@ def send_to_vault(contract: str, amount: float):
 def stake(amount: float):
     assert_active()
 
+    assert amount > 0, 'Negative amounts are not allowed'
     assert now > start_date.get(), f'Staking not started yet: {start_date.get()}'
     assert now < start_date_end.get(), f'Staking period ended: {start_date_end.get()}'
-    assert amount > 0, 'Amount must be > 0'
 
     staking[ctx.caller] += amount
     send_to_vault(stake_con.get(), amount)
