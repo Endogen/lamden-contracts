@@ -63,8 +63,8 @@ def show_level(address: str):
 def stake(neb_lp_amount: float = 0, neb_key_amount: int = 0):
     assert_active()
 
-    assert neb_lp_amount > 0, 'Negative amounts are not allowed'
-    assert neb_key_amount > 0, 'Negative amounts are not allowed'
+    assert neb_lp_amount >= 0, 'Negative amounts are not allowed'
+    assert neb_key_amount >= 0, 'Negative amounts are not allowed'
 
     if neb_lp_amount > 0:
         staking['lp'] += neb_lp_amount
@@ -74,7 +74,7 @@ def stake(neb_lp_amount: float = 0, neb_key_amount: int = 0):
             contract=con['neb'],
             to=ctx.this, 
             main_account=ctx.caller, 
-            amount=neb_lp_amount)
+            amount=neb_lp_amount)   
     
     if neb_key_amount > 0:
         staking['key'] += neb_key_amount
@@ -137,7 +137,7 @@ def lock():
     assert vault_contract in trusted.get(), f'Unknown contract {vault_contract}'
 
     if not isinstance(locking[user_address], list):
-        locking[user_address] = []        
+        locking[user_address] = []
 
     lock_list = locking[user_address]
 
