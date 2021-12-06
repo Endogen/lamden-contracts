@@ -10,6 +10,7 @@
 I = importlib
 
 staking = Hash(default_value=0)
+payouts = Hash(default_value=0)
 
 emission_con = Variable()
 total_emission = Variable()
@@ -26,7 +27,7 @@ end_date = Variable()
 
 NEB_FEE = 2
 NEB_CONTRACT = 'con_nebula'
-LP_VAULT = 'con_neb_vault_lp_001'
+LP_VAULT = 'con_neb_vault_lp_005'
 MIN_STAKE_PERIOD = 2880
 MAX_RUNTIME = 129600
 
@@ -116,6 +117,7 @@ def unstake():
     I.import_module(LP_VAULT).unlock()
 
     staking[ctx.caller] = 0
+    payouts[ctx.caller] = user_emission
 
     return f'Emission: {user_emission} {emission_con.get()}'
 

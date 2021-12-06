@@ -10,6 +10,7 @@
 I = importlib
 
 staking = Hash(default_value=0)
+payouts = Hash(default_value=0)
 
 stake_con = Variable()
 emission_con = Variable()
@@ -129,6 +130,7 @@ def unstake():
         to=ctx.caller)
 
     staking[ctx.caller] = 0
+    payouts[ctx.caller] = user_emission
 
     return f'Emission: {user_emission} {emission_con.get()}'
 
