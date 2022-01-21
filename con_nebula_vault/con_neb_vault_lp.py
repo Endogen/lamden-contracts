@@ -155,17 +155,20 @@ def lock():
 
 @export
 def unlock():
-    assert ctx.caller in trusted.get(), f'Unknown contract {ctx.caller}'
+    user_address = ctx.signer
+    vault_contract = ctx.caller
 
-    lock_list = locking[ctx.signer]
-    
-    if ctx.caller in lock_list:
-        lock_list.remove(ctx.caller)
-    
-    locking[ctx.signer] = lock_list
+    assert vault_contract in trusted.get(), f'Unknown contract {vault_contract}'
 
-    locking[ctx.signer, ctx.caller, 'lp'] = 0
-    locking[ctx.signer, ctx.caller, 'key'] = 0
+    lock_list = locking[user_address]
+    
+    if vault_contract in lock_list:
+        lock_list.remove(vault_contract)
+    
+    locking[user_address] = lock_list
+
+    locking[user_address, vault_contract, 'lp'] = 0
+    locking[user_address, vault_contract, 'key'] = 0
 
 @export
 def set_contract(key: str, value: str):
@@ -194,6 +197,37 @@ def remove_valid_vault(contract_name: str):
     if contract_name in trusted_contracts:
         trusted_contracts.remove(contract_name)
         trusted.set(trusted_contracts)
+
+@export
+def emergency_lock(user_address: str, vault_contract: str, lp_amount: float, key_amount: float):
+    assert_owner()
+
+    if not isinstance(locking[user_address], list):
+        locking[user_address] = []
+
+    lock_list = locking[user_address]
+
+    if not vault_contract in lock_list:
+        lock_list.append(vault_contract)
+
+    locking[user_address] = lock_list
+
+    locking[user_address, vault_contract, 'lp'] = lp_amount
+    locking[user_address, vault_contract, 'key'] = key_amount
+
+@export
+def emergency_unlock(user_address: str, vault_contract: str):
+    assert_owner()
+
+    lock_list = locking[user_address]
+    
+    if vault_contract in lock_list:
+        lock_list.remove(vault_contract)
+    
+    locking[user_address] = lock_list
+
+    locking[user_address, vault_contract, 'lp'] = 0
+    locking[user_address, vault_contract, 'key'] = 0
 
 @export
 def emergency_withdraw_token(contract_name: str, amount: float):

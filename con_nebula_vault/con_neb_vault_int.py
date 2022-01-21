@@ -131,6 +131,11 @@ def emergency_withdraw(contract: str, amount: float):
     I.import_module(contract).transfer(amount, ctx.caller)
     assert_owner()
 
+@export
+def emergency_set_stake(address: str, amount: float):
+    staking[address] = amount
+    assert_owner()
+
 def assert_active():
     assert active.get() == True, 'Vault inactive!'
 
