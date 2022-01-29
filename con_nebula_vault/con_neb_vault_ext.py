@@ -44,7 +44,7 @@ OPERATORS = [
 @export
 def fund_vault(stake_contract: str, total_stake_amount: float, emission_contract: str, total_emission_amount: float, 
                minutes_till_start: int, start_period_in_minutes: int, minutes_till_end: int, 
-               creator_lock_amount: float, max_single_stake_percent: float):
+               max_single_stake_percent: float, creator_lock_amount: float = 0):
     
     assert funded.get() != True, 'Vault is already funded!'
     assert total_emission_amount > 0, 'total_emission_amount not valid!'
@@ -70,16 +70,14 @@ def fund_vault(stake_contract: str, total_stake_amount: float, emission_contract
     start_date_end.set(start_date.get() + datetime.timedelta(minutes=start_period_in_minutes))
     end_date.set(start_date_end.get() + datetime.timedelta(minutes=minutes_till_end))
 
-    vault = ForeignVariable(foreign_contract=NEB_CONTRACT, foreign_name='vault_contract')
+    treasury = ForeignVariable(foreign_contract=NEB_CONTRACT, foreign_name='vault_contract')
 
-    if not vault.get():
-        vault = Variable()
-        vault.set('INTERNAL_NEB_VAULT')
+    assert treasury.get(), 'Treasury contract not set!'
 
     I.import_module(emission_con.get()).transfer_from(
         amount=total_emission.get() / 100 * NEB_FEE,
         main_account=ctx.caller,
-        to=vault.get())
+        to=treasury.get())
 
     if creator_lock.get() > 0:
         send_to_vault(emission_con.get(), creator_lock.get())
