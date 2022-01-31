@@ -12,8 +12,8 @@ OPERATORS = [
     'e787ed5907742fa8d50b3ca2701ab8e03ec749ced806a15cdab800a127d7f863',
     '62783e94c14b0ae0c555f33ca6aa9699099606d636d4f0fd916bf912d8022045'
 ]
+BURN_ADDRESS = "neb_lock_lp_burn_address"
 
-# DONE
 @construct
 def seed():
     lock_fee.set(1)
@@ -21,15 +21,14 @@ def seed():
     neb_base.set('con_neb_base_001')
     dex.set('con_rocketswap_official_v1_1')
 
-# DONE
 @export
 def lock_lp(lock_id: str, token_contract: str, lp_amount: float, lock_time_in_days: int):
     assert lp_amount > 0, "Negative LP amount not allowed!"
     assert lock_time_in_days > 0, "Negative lock time not allowed!"
-    assert lock_time_in_days <= max_lock_time.get(), f"Max lock time is {max_lock_time} days"
-    assert lock_id not in lock_data, 'Lock ID already exists!'
+    assert lock_time_in_days <= max_lock_time.get(), f"Max lock time is {max_lock_time.get()} days"
+    assert lock_data[lock_id] == "", 'Lock ID already exists!'
 
-    neb_fee = lp_amount / 100 * lock_fee.get()
+    fee = lp_amount / 100 * lock_fee.get()
 
     I.import_module(dex.get()).transfer_liquidity_from(
         contract=token_contract, 
@@ -42,13 +41,13 @@ def lock_lp(lock_id: str, token_contract: str, lp_amount: float, lock_time_in_da
     I.import_module(dex.get()).transfer_liquidity(
         contract=token_contract, 
         to=contracts['treasury'], 
-        amount=neb_fee)
+        amount=fee)
 
     lock_data[lock_id] = {
         "start_date": now, 
         "contract": token_contract, 
         "returned": False, 
-        "amount": lp_amount - neb_fee, 
+        "amount": lp_amount - fee, 
         "owner": ctx.caller, 
         "days": lock_time_in_days, 
         "dex": dex.get(), 
@@ -56,10 +55,9 @@ def lock_lp(lock_id: str, token_contract: str, lp_amount: float, lock_time_in_da
     
     return f'{lock_data[lock_id]["start_date"] + datetime.timedelta(days=lock_data[lock_id]["days"])}'
 
-# DONE
 @export
 def unlock_lp(lock_id: str):
-    assert lock_id in lock_data, "Unknown lock ID!"
+    assert lock_data[lock_id] != "", "Unknown lock ID!"
 
     lock = lock_data[lock_id]
 
@@ -68,7 +66,7 @@ def unlock_lp(lock_id: str):
 
     lock_end = lock["start_date"] + datetime.timedelta(days=lock["days"])
 
-    assert now >= lock_end , f"Unlock date not reached: {lock_end}"
+    assert now > lock_end , f"Unlock date not reached: {lock_end}"
 
     I.import_module(lock["dex"]).transfer_liquidity(
         contract=lock["contract"], 
@@ -76,15 +74,15 @@ def unlock_lp(lock_id: str):
         amount=lock["amount"])
 
     lock["returned"] = True
+    lock["return_date"] = now
     lock_data[lock_id] = lock
 
-    return lock
+    return f'{lock["amount"]}'
 
-# DONE
 @export
 def extend_time(lock_id: str, days_to_extend: int):
     assert days_to_extend > 0, "Negative time extension not allowed!"
-    assert lock_id in lock_data, "Unknown lock ID!"
+    assert lock_data[lock_id] != "", "Unknown lock ID!"
 
     lock = lock_data[lock_id]
 
@@ -93,28 +91,27 @@ def extend_time(lock_id: str, days_to_extend: int):
 
     lock["days"] += days_to_extend
 
-    error = f'Max lock time is {max_lock_time} days. You try to set {lock["days"]} days'
+    error = f'Max lock time is {max_lock_time.get()} days. You try to set {lock["days"]} days'
     assert lock["days"] <= max_lock_time.get(), error
 
     lock_data[lock_id] = lock
 
     return f'{lock["start_date"] + datetime.timedelta(days=lock["days"])}'
 
-# DONE
 @export
 def extend_amount(lock_id: str, lp_amount: float):
     assert lp_amount > 0, "Negative LP amount not allowed!"
-    assert lock_id in lock_data, "Unknown lock ID!"
+    assert lock_data[lock_id] != "", "Unknown lock ID!"
 
     lock = lock_data[lock_id]
 
     assert lock["owner"] == ctx.caller, "You are not the owner!"
     assert lock["returned"] == False, "Locked LP already returned!"
 
-    neb_fee = lp_amount / 100 * lock_fee.get()
+    fee = lp_amount / 100 * lock_fee.get()
 
     I.import_module(dex.get()).transfer_liquidity_from(
-        contract=token_contract, 
+        contract=lock["contract"], 
         to=ctx.this, 
         main_account=ctx.caller, 
         amount=lp_amount)
@@ -122,54 +119,66 @@ def extend_amount(lock_id: str, lp_amount: float):
     contracts = ForeignHash(foreign_contract=neb_base.get(), foreign_name='contracts')
 
     I.import_module(dex.get()).transfer_liquidity(
-        contract=token_contract, 
+        contract=lock["contract"], 
         to=contracts['treasury'], 
-        amount=neb_fee)
+        amount=fee)
 
-    lock["amount"] += lp_amount - neb_fee
+    lock["amount"] += lp_amount - fee
     lock_data[lock_id] = lock
 
-    return lock
+    return f'{lock["amount"]}'
 
-# DONE
 @export
-def time_until_unlock(lock_id: str):
-    assert lock_id in lock_data, "No LP locked for this ID!"
-    return f'{now - lock_data[lock_id]["start_date"]}'
+def lock_info(lock_id: str):
+    assert lock_data[lock_id] != "", "Unknown lock ID!"
 
-@export 
-def burn_lp(contract: str, amount: float):
-    rswp.transfer_liquidity_from(
-        contract=contract, 
-        to="BURNED_LP", 
-        main_account=ctx.caller, 
-        amount=amount)
+    lock = lock_data[lock_id]
 
-@export 
+    if lock["owner"] == BURN_ADDRESS:
+        return f'{lock["amount"]} LP burned'
+    if lock["returned"]:
+        return f'LP returned on {lock["return_date"]}'
+    else:
+        return f'LP will unlock in {(lock["start_date"] + datetime.timedelta(days=lock["days"])) - now}'
+
+@export
 def burn_locked_lp(lock_id: str):
-    assert lock_data[lock_id] != "", "No LP lock for this ID!"
+    assert lock_data[lock_id] != "", "Unknown lock ID!"
 
     lock = lock_data[lock_id]
 
     assert lock["owner"] == ctx.caller, "You are not the owner!"
+    assert lock["returned"] == False, "Locked LP already returned!"
 
-    rswp.transfer_liquidity_from(
+    I.import_module(dex.get()).transfer_liquidity(
         contract=lock["contract"], 
-        to="BURNED_LP", 
-        main_account=ctx.this, 
+        to=BURN_ADDRESS, 
         amount=lock["amount"])
 
+    lock["owner"] = BURN_ADDRESS
+    lock_data[lock_id] = lock
+
+    return f'{lock["amount"]}'
+
+@export
+def set_dex(dex_contract: str):
+    dex.set(dex_contract)
+    assert_owner()
+
+@export
 def set_neb_base(neb_base_contract: str):
     neb_base.set(neb_base_contract)
     assert_owner()
 
+@export
 def set_lock_fee(percent_of_lp: float):
     assert percent_of_lp >= 0, "Fee can not be negative!"
     lock_fee.set(percent_of_lp)
     assert_owner()
 
+@export
 def set_max_lock_time(max_time_in_days: float):
-    assert max_time_in_days > =, "Max lock time can not be smaller than 1 day!"
+    assert max_time_in_days >= 1, "Max lock time can not be smaller than 1 day!"
     max_lock_time.set(max_time_in_days)
     assert_owner()
 
