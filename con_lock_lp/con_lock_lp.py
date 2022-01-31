@@ -1,3 +1,11 @@
+#  _   _      _           _         _      _____    _                _    
+# | \ | |    | |         | |       | |    |  __ \  | |              | |   
+# |  \| | ___| |__  _   _| | __ _  | |    | |__) | | |     ___   ___| | __
+# | . ` |/ _ \ '_ \| | | | |/ _` | | |    |  ___/  | |    / _ \ / __| |/ /
+# | |\  |  __/ |_) | |_| | | (_| | | |____| |      | |___| (_) | (__|   < 
+# |_| \_|\___|_.__/ \__,_|_|\__,_| |______|_|      |______\___/ \___|_|\_\
+#
+
 I = importlib
 
 lock_data = Hash(default_value="")
@@ -12,7 +20,8 @@ OPERATORS = [
     'e787ed5907742fa8d50b3ca2701ab8e03ec749ced806a15cdab800a127d7f863',
     '62783e94c14b0ae0c555f33ca6aa9699099606d636d4f0fd916bf912d8022045'
 ]
-BURN_ADDRESS = "neb_lock_lp_burn_address"
+NEB_CONTRACT = 'con_nebula'
+BURN_ADDRESS = 'neb_lock_lp_burn_address'
 
 @construct
 def seed():
@@ -36,11 +45,13 @@ def lock_lp(lock_id: str, token_contract: str, lp_amount: float, lock_time_in_da
         main_account=ctx.caller, 
         amount=lp_amount)
 
-    contracts = ForeignHash(foreign_contract=neb_base.get(), foreign_name='contracts')
+    treasury = ForeignVariable(foreign_contract=NEB_CONTRACT, foreign_name='vault_contract')
+
+    assert treasury.get(), 'Treasury contract not set!'
 
     I.import_module(dex.get()).transfer_liquidity(
         contract=token_contract, 
-        to=contracts['treasury'], 
+        to=treasury.get(), 
         amount=fee)
 
     lock_data[lock_id] = {
@@ -116,11 +127,13 @@ def extend_amount(lock_id: str, lp_amount: float):
         main_account=ctx.caller, 
         amount=lp_amount)
 
-    contracts = ForeignHash(foreign_contract=neb_base.get(), foreign_name='contracts')
+    treasury = ForeignVariable(foreign_contract=NEB_CONTRACT, foreign_name='vault_contract')
+
+    assert treasury.get(), 'Treasury contract not set!'
 
     I.import_module(dex.get()).transfer_liquidity(
         contract=lock["contract"], 
-        to=contracts['treasury'], 
+        to=treasury.get(), 
         amount=fee)
 
     lock["amount"] += lp_amount - fee
