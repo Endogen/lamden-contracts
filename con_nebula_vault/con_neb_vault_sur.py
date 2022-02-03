@@ -101,7 +101,7 @@ def unstake():
         payouts[ctx.caller, stake_contract.get()] = staking[ctx.caller] + stake_emission
 
         I.import_module(stake_contract.get()).transfer(
-            amount=payouts[ctx.caller],
+            amount=payouts[ctx.caller, stake_contract.get()],
             to=ctx.caller)
 
         if funding_amount.get():
@@ -118,19 +118,19 @@ def unstake():
         tax = staking[ctx.caller] / 100 * unstake_tax.get()
         total_emission.set(total_emission.get() + tax)
 
-        payouts[ctx.caller] = staking[ctx.caller] - tax
+        payouts[ctx.caller, stake_contract.get()] = staking[ctx.caller] - tax
         total_stake.set(total_stake.get() - staking[ctx.caller])
 
         I.import_module(stake_contract.get()).transfer(
-            amount=payouts[ctx.caller],
+            amount=payouts[ctx.caller, stake_contract.get()],
             to=ctx.caller)
 
     staking[ctx.caller] = 0
 
-    funding_payout = payouts[ctx.caller, funding_contract.get()]
     stake_payout = payouts[ctx.caller, stake_contract.get()]
+    funding_payout = payouts[ctx.caller, funding_contract.get()]
 
-    return f'{funding_payout} {stake_payout}'
+    return f'{funding_contract.get()}: {funding_payout}, {stake_contract.get()}: {stake_payout}'
 
 @export
 def emergency_withdraw(contract: str, amount: float):
