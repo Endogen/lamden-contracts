@@ -12,8 +12,10 @@ lock_data = Hash(default_value="")
 
 dex = Variable()
 neb_base = Variable()
-lock_fee = Variable()
 max_lock_time = Variable()
+
+lock_fee = Variable()
+lock_fee_discount = Variable()
 
 OPERATORS = [
     'ae7d14d6d9b8443f881ba6244727b69b681010e782d4fe482dbfb0b6aca02d5d',
@@ -21,11 +23,14 @@ OPERATORS = [
     '62783e94c14b0ae0c555f33ca6aa9699099606d636d4f0fd916bf912d8022045'
 ]
 NEB_CONTRACT = 'con_nebula'
+NEB_KEY_CONTRACT = 'con_neb_key001'
 BURN_ADDRESS = 'neb_lock_lp_burn_address'
 
 @construct
 def seed():
     lock_fee.set(1)
+    lock_fee_discount.set(0.1)
+
     max_lock_time.set(365)
     neb_base.set('con_neb_base_001')
     dex.set('con_rocketswap_official_v1_1')
@@ -37,7 +42,10 @@ def lock_lp(lock_id: str, token_contract: str, lp_amount: float, lock_time_in_da
     assert lock_time_in_days <= max_lock_time.get(), f"Max lock time is {max_lock_time.get()} days"
     assert lock_data[lock_id] == "", 'Lock ID already exists!'
 
-    fee = lp_amount / 100 * lock_fee.get()
+    neb_key_balances = ForeignHash(foreign_contract=NEB_KEY_CONTRACT, foreign_name='balances')
+    discount = lock_fee_discount.get() if neb_key_balances[ctx.caller] >= 1 else 0
+
+    fee = lp_amount / 100 * (lock_fee.get() - discount)
 
     I.import_module(dex.get()).transfer_liquidity_from(
         contract=token_contract, 
@@ -46,7 +54,6 @@ def lock_lp(lock_id: str, token_contract: str, lp_amount: float, lock_time_in_da
         amount=lp_amount)
 
     treasury = ForeignVariable(foreign_contract=NEB_CONTRACT, foreign_name='vault_contract')
-
     assert treasury.get(), 'Treasury contract not set!'
 
     I.import_module(dex.get()).transfer_liquidity(
@@ -187,6 +194,12 @@ def set_neb_base(neb_base_contract: str):
 def set_lock_fee(percent_of_lp: float):
     assert percent_of_lp >= 0, "Fee can not be negative!"
     lock_fee.set(percent_of_lp)
+    assert_owner()
+
+@export
+def set_lock_fee_discount(percent_discount: float):
+    assert percent_discount >= 0, "Fee discount can not be negative!"
+    lock_fee_discount.set(percent_discount)
     assert_owner()
 
 @export

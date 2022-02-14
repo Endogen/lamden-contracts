@@ -31,7 +31,10 @@ start_date_end = Variable()
 end_date = Variable()
 
 NEB_FEE = 2
+NEB_INSTANT_FEE = 5000
+NEB_FEE_DISCOUNT = 0.2
 NEB_CONTRACT = 'con_nebula'
+NEB_KEY_CONTRACT = 'con_neb_key001'
 MIN_STAKE_PERIOD = 2880
 MAX_RUNTIME = 129600
 
@@ -69,24 +72,29 @@ def fund_vault(stake_contract: str, total_stake_amount: float, emission_contract
     start_date_end.set(start_date.get() + datetime.timedelta(minutes=start_period_in_minutes))
     end_date.set(start_date_end.get() + datetime.timedelta(minutes=minutes_till_end))
 
-    treasury = ForeignVariable(foreign_contract=NEB_CONTRACT, foreign_name='vault_contract')
+    neb_key_balances = ForeignHash(foreign_contract=NEB_KEY_CONTRACT, foreign_name='balances')
+    discount = NEB_FEE_DISCOUNT if neb_key_balances[ctx.caller] >= 1 else 0
 
+    fee = total_emission.get() / 100 * (NEB_FEE - discount)
+    total_amount = total_emission.get() + fee + creator_lock.get()
+
+    send_to_vault(emission_con.get(), total_amount)
+
+    treasury = ForeignVariable(foreign_contract=NEB_CONTRACT, foreign_name='vault_contract')
     assert treasury.get(), 'Treasury contract not set!'
 
-    I.import_module(emission_con.get()).transfer_from(
-        amount=total_emission.get() / 100 * NEB_FEE,
+    I.import_module(emission_con.get()).transfer(
+        to=treasury.get(),
+        amount=fee)
+
+    I.import_module(NEB_CONTRACT).transfer_from(
         main_account=ctx.caller,
+        amount=NEB_INSTANT_FEE,
         to=treasury.get())
-
-    if creator_lock.get() > 0:
-        send_to_vault(emission_con.get(), creator_lock.get())
-
-    send_to_vault(emission_con.get(), total_emission.get())
 
     active.set(True)
     funded.set(True)
 
-@export
 def send_to_vault(contract: str, amount: float):
     I.import_module(contract).transfer_from(
         main_account=ctx.caller,
@@ -147,16 +155,16 @@ def emergency_set_stake(address: str, amount: float):
     assert_owner()
 
 @export
-def pay_back_locked_creator_tokens():
+def pay_back_locked_creator_tokens(pay_to_address: str):
     assert_active()
 
     assert now > end_date.get(), f'End date not reached: {end_date.get()}'
     assert creator_addr.get() == ctx.caller, 'You are not the vault creator!'
     assert creator_lock.get() > 0, 'No creator funds locked!'
-    
+
     I.import_module(emission_con.get()).transfer(
         amount=creator_lock.get(),
-        to=creator_addr.get())
+        to=pay_to_address)
 
 def assert_active():
     assert active.get() == True, 'Vault inactive!'
