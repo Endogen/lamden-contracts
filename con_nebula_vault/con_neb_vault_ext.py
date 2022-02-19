@@ -52,7 +52,7 @@ def fund_vault(stake_contract: str, total_stake_amount: float, emission_contract
     assert total_emission_amount > 0, 'total_emission_amount not valid!'
     assert total_stake_amount > 0, 'total_stake_amount not valid!'
     assert minutes_till_start > 0, 'minutes_till_start not valid!'
-    assert start_period_in_minutes >= MIN_STAKE_PERIOD, 'Staking needs to be open for at least 2 days!'
+    assert start_period_in_minutes >= MIN_STAKE_PERIOD, f'Staking needs to be open for at least {MIN_STAKE_PERIOD / 60} hours!'
     assert minutes_till_end > 0 and minutes_till_end <= MAX_RUNTIME, 'minutes_till_end not valid!'
     assert creator_lock_amount >= 0, 'creator_lock_amount not valid!'
     assert max_single_stake_percent > 0, 'max_single_stake_percent not valid!'
