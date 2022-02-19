@@ -35,7 +35,7 @@ NEB_INSTANT_FEE = 5000
 NEB_FEE_DISCOUNT = 0.2
 NEB_CONTRACT = 'con_nebula'
 NEB_KEY_CONTRACT = 'con_neb_key001'
-MIN_STAKE_PERIOD = 2880
+MIN_STAKE_PERIOD = 1440
 MAX_RUNTIME = 129600
 
 OPERATORS = [
@@ -142,16 +142,6 @@ def unstake():
 @export
 def active(is_active: bool):
     active.set(is_active)
-    assert_owner()
-
-@export
-def emergency_withdraw(contract: str, amount: float):
-    I.import_module(contract).transfer(amount, ctx.caller)
-    assert_owner()
-
-@export
-def emergency_set_stake(address: str, amount: float):
-    staking[address] = amount
     assert_owner()
 
 @export
