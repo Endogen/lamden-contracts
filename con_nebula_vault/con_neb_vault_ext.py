@@ -5,6 +5,7 @@
 # | |\  |  __/ |_) | |_| | | (_| | | |____ >  <| ||  __/ |  | | | | (_| | |    \  / (_| | |_| | | |_ 
 # |_| \_|\___|_.__/ \__,_|_|\__,_| |______/_/\_\\__\___|_|  |_| |_|\__,_|_|     \/ \__,_|\__,_|_|\__|
 #
+# Version 1.0
 
 I = importlib
 
@@ -20,7 +21,6 @@ total_stake = Variable()
 current_stake = Variable()
 max_single_stake = Variable()
 
-active = Variable()
 funded = Variable()
 
 creator_addr = Variable()
@@ -37,11 +37,6 @@ NEB_CONTRACT = 'con_nebula'
 NEB_KEY_CONTRACT = 'con_neb_key001'
 MIN_STAKE_PERIOD = 1440
 MAX_RUNTIME = 129600
-
-OPERATORS = [
-    'ae7d14d6d9b8443f881ba6244727b69b681010e782d4fe482dbfb0b6aca02d5d',
-    'e787ed5907742fa8d50b3ca2701ab8e03ec749ced806a15cdab800a127d7f863'
-]
 
 @export
 def fund_vault(stake_contract: str, total_stake_amount: float, emission_contract: str, total_emission_amount: float, 
@@ -92,7 +87,6 @@ def fund_vault(stake_contract: str, total_stake_amount: float, emission_contract
         amount=NEB_INSTANT_FEE,
         to=treasury.get())
 
-    active.set(True)
     funded.set(True)
 
 def send_to_vault(contract: str, amount: float):
@@ -103,8 +97,6 @@ def send_to_vault(contract: str, amount: float):
 
 @export
 def stake(amount: float):
-    assert_active()
-
     assert amount > 0, 'Negative amounts are not allowed'
     assert now > start_date.get(), f'Staking not started yet: {start_date.get()}'
     assert now < start_date_end.get(), f'Staking period ended: {start_date_end.get()}'
@@ -118,8 +110,6 @@ def stake(amount: float):
 
 @export
 def unstake():
-    assert_active()
-
     assert staking[ctx.caller] != 0, f'Address is not staking!'
     assert now > end_date.get(), f'End date not reached: {end_date.get()}'
 
@@ -140,14 +130,22 @@ def unstake():
     return f'Emission: {user_emission} {emission_con.get()}'
 
 @export
-def active(is_active: bool):
-    active.set(is_active)
-    assert_owner()
+def unstake_only_stake(amount: float):
+    assert staking[ctx.caller] != 0, f'Address is not staking!'
+    assert now > end_date.get(), f'End date not reached: {end_date.get()}'
+    assert amount <= staking[ctx.caller], f'Max unstake amount is {staking[ctx.caller]}'
+
+    I.import_module(stake_con.get()).transfer(
+        amount=amount,
+        to=ctx.caller)
+
+    staking[ctx.caller] -= amount
+    payouts[ctx.caller] = 0
+
+    return f'Remaining Stake: {staking[ctx.caller]} {stake_con.get()}'
 
 @export
 def pay_back_locked_creator_tokens(pay_to_address: str):
-    assert_active()
-
     assert now > end_date.get(), f'End date not reached: {end_date.get()}'
     assert creator_addr.get() == ctx.caller, 'You are not the vault creator!'
     assert creator_lock.get() > 0, 'No creator funds locked!'
@@ -155,9 +153,3 @@ def pay_back_locked_creator_tokens(pay_to_address: str):
     I.import_module(emission_con.get()).transfer(
         amount=creator_lock.get(),
         to=pay_to_address)
-
-def assert_active():
-    assert active.get() == True, 'Vault inactive!'
-
-def assert_owner():
-    assert ctx.caller in OPERATORS, 'Only executable by operators!'
