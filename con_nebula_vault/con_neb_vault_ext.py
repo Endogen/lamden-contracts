@@ -5,7 +5,7 @@
 # | |\  |  __/ |_) | |_| | | (_| | | |____ >  <| ||  __/ |  | | | | (_| | |    \  / (_| | |_| | | |_ 
 # |_| \_|\___|_.__/ \__,_|_|\__,_| |______/_/\_\\__\___|_|  |_| |_|\__,_|_|     \/ \__,_|\__,_|_|\__|
 #
-# Version 1.0
+# Version 1.1
 
 I = importlib
 
@@ -130,7 +130,7 @@ def unstake():
     return f'Emission: {user_emission} {emission_con.get()}'
 
 @export
-def unstake_only_stake(amount: float):
+def payout_only_stake(amount: float):
     assert staking[ctx.caller] != 0, f'Address is not staking!'
     assert now > end_date.get(), f'End date not reached: {end_date.get()}'
     assert amount <= staking[ctx.caller], f'Max unstake amount is {staking[ctx.caller]}'
@@ -138,6 +138,8 @@ def unstake_only_stake(amount: float):
     I.import_module(stake_con.get()).transfer(
         amount=amount,
         to=ctx.caller)
+
+    current_stake -= amount
 
     staking[ctx.caller] -= amount
     payouts[ctx.caller] = 0
