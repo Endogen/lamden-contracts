@@ -5,7 +5,7 @@
 # | |\  |  __/ |_) | |_| | | (_| | | |____ >  <| ||  __/ |  | | | | (_| | |    \  / (_| | |_| | | |_ 
 # |_| \_|\___|_.__/ \__,_|_|\__,_| |______/_/\_\\__\___|_|  |_| |_|\__,_|_|     \/ \__,_|\__,_|_|\__|
 #
-# Version 1.1
+# Version 1.2
 
 I = importlib
 
@@ -85,7 +85,7 @@ def fund_vault(stake_contract: str, total_stake_amount: float, emission_contract
     I.import_module(NEB_CONTRACT).transfer_from(
         main_account=ctx.caller,
         amount=NEB_INSTANT_FEE,
-        to=treasury.get())
+        to='NEBULA_BURN_ADDRESS')
 
     funded.set(True)
 
