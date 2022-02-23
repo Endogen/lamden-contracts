@@ -5,7 +5,7 @@
 # | |\  |  __/ |_) | |_| | | (_| | | |____ >  <| ||  __/ |  | | | | (_| | |    \  / (_| | |_| | | |_ 
 # |_| \_|\___|_.__/ \__,_|_|\__,_| |______/_/\_\\__\___|_|  |_| |_|\__,_|_|     \/ \__,_|\__,_|_|\__|
 #
-# Version 1.2
+# Version 1.3
 
 I = importlib
 
@@ -21,8 +21,6 @@ total_stake = Variable()
 current_stake = Variable()
 max_single_stake = Variable()
 
-funded = Variable()
-
 creator_addr = Variable()
 creator_lock = Variable()
 
@@ -30,13 +28,23 @@ start_date = Variable()
 start_date_end = Variable()
 end_date = Variable()
 
+funded = Variable()
+
 NEB_FEE = 2
-NEB_INSTANT_FEE = 5000
 NEB_FEE_DISCOUNT = 0.2
+NEB_INSTANT_FEE = 5000
+
 NEB_CONTRACT = 'con_nebula'
 NEB_KEY_CONTRACT = 'con_neb_key001'
-MIN_STAKE_PERIOD = 1440
-MAX_RUNTIME = 129600
+
+MIN_START_TIME = 5
+MAX_START_TIME = 10080
+
+MIN_STAKE_TIME = 1440
+MAX_STAKE_TIME = 10080
+
+MIN_LOCK_TIME = 1440
+MAX_LOCK_TIME = 518400
 
 @export
 def fund_vault(stake_contract: str, total_stake_amount: float, emission_contract: str, total_emission_amount: float, 
@@ -44,23 +52,36 @@ def fund_vault(stake_contract: str, total_stake_amount: float, emission_contract
                max_single_stake_percent: float, creator_lock_amount: float = 0):
     
     assert funded.get() != True, 'Vault is already funded!'
-    assert total_emission_amount > 0, 'total_emission_amount not valid!'
-    assert total_stake_amount > 0, 'total_stake_amount not valid!'
-    assert minutes_till_start > 0, 'minutes_till_start not valid!'
-    assert start_period_in_minutes >= MIN_STAKE_PERIOD, f'Staking needs to be open for at least {MIN_STAKE_PERIOD / 60} hours!'
-    assert minutes_till_end > 0 and minutes_till_end <= MAX_RUNTIME, 'minutes_till_end not valid!'
-    assert creator_lock_amount >= 0, 'creator_lock_amount not valid!'
-    assert max_single_stake_percent > 0, 'max_single_stake_percent not valid!'
 
-    creator_addr.set(ctx.caller)
-    creator_lock.set(creator_lock_amount)
+    assert total_stake_amount > 0, 'Total stake amount must be > 0'
+    assert total_emission_amount > 0, 'Total emission amount must be > 0'
+    
+    assert creator_lock_amount >= 0, 'Creator lock amount must be >= 0'
+    
+    assert max_single_stake_percent > 0, 'Maximum single stake percent must be > 0'
+    assert max_single_stake_percent < 100, 'Maximum single stake percent must be < 100'
+    
+    assert minutes_till_start >= MIN_START_TIME, f'Minimum time from vault start to staking start: {MIN_START_TIME} minutes'
+    assert minutes_till_start <= MAX_START_TIME, f'Maximum time from vault start to staking start: {MAX_START_TIME} minutes'
+    
+    assert start_period_in_minutes >= MIN_STAKE_TIME, f'Minimum time from staking start to staking end: {MIN_STAKE_TIME / 60} hours'
+    assert start_period_in_minutes <= MAX_STAKE_TIME, f'Maximum time from staking start to staking end: {MAX_STAKE_TIME / 60 / 24} days'
+
+    assert minutes_till_end >= MIN_LOCK_TIME, f'Minimum time from staking end to vault end: {MIN_LOCK_TIME / 60} hours'
+    assert minutes_till_end <= MAX_LOCK_TIME, f'Maximum time from staking end to vault end: {MAX_LOCK_TIME / 60 / 24} days'
+
+    sc = I.import_module(stake_contract)
+    ec = I.import_module(emission_contract)
 
     stake_con.set(stake_contract)
     emission_con.set(emission_contract)
 
+    creator_addr.set(ctx.caller)
+    creator_lock.set(creator_lock_amount)
+
     current_stake.set(0)
-    total_emission.set(total_emission_amount)
     total_stake.set(total_stake_amount)
+    total_emission.set(total_emission_amount)
     max_single_stake.set(total_stake_amount / 100 * max_single_stake_percent)
 
     start_date.set(now + datetime.timedelta(minutes=minutes_till_start))
