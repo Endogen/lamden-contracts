@@ -5,7 +5,7 @@
 # | |\  |  __/ |_) | |_| | | (_| | | |____ >  <| ||  __/ |  | | | | (_| | |    \  / (_| | |_| | | |_ 
 # |_| \_|\___|_.__/ \__,_|_|\__,_| |______/_/\_\\__\___|_|  |_| |_|\__,_|_|     \/ \__,_|\__,_|_|\__|
 #
-# Version 1.3
+# Version 1.4
 
 I = importlib
 
@@ -160,7 +160,7 @@ def payout_only_stake(amount: float):
         amount=amount,
         to=ctx.caller)
 
-    current_stake -= amount
+    current_stake.set(current_stake.get() - amount)
 
     staking[ctx.caller] -= amount
     payouts[ctx.caller] = 0
