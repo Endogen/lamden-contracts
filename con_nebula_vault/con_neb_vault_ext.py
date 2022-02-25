@@ -89,7 +89,11 @@ def fund_vault(stake_contract: str, total_stake_amount: float, emission_contract
     end_date.set(start_date_end.get() + datetime.timedelta(minutes=minutes_till_end))
 
     neb_key_balances = ForeignHash(foreign_contract=NEB_KEY_CONTRACT, foreign_name='balances')
-    discount = NEB_FEE_DISCOUNT if neb_key_balances[ctx.caller] >= 1 else 0
+
+    if neb_key_balances[ctx.caller] and neb_key_balances[ctx.caller] >= 1:
+        discount = NEB_FEE_DISCOUNT
+    else:
+        discount = 0
 
     fee = total_emission.get() / 100 * (NEB_FEE - discount)
     total_amount = total_emission.get() + fee + creator_lock.get()
