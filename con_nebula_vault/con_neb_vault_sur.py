@@ -5,7 +5,7 @@
 # | |\  |  __/ |_) | |_| | | (_| |  ____) | |_| | |   \ V /| |\ V / (_) | |       \  / (_| | |_| | | |_ 
 # |_| \_|\___|_.__/ \__,_|_|\__,_| |_____/ \__,_|_|    \_/ |_| \_/ \___/|_|        \/ \__,_|\__,_|_|\__|
 #
-# Version 1.0
+# Version 1.1
 
 I = importlib
 
@@ -13,7 +13,7 @@ staking = Hash(default_value=0)
 payouts = Hash(default_value=0)
 
 start_date = Variable()
-start_end_date = Variable()
+lock_date = Variable()
 end_date = Variable()
 
 total_stake = Variable()
@@ -26,7 +26,6 @@ stake_contract = Variable()
 unstake_tax = Variable()
 active = Variable()
 
-NEBULA_FEE = 5
 OPERATORS = [
     'ae7d14d6d9b8443f881ba6244727b69b681010e782d4fe482dbfb0b6aca02d5d',
     'e787ed5907742fa8d50b3ca2701ab8e03ec749ced806a15cdab800a127d7f863',
@@ -34,11 +33,21 @@ OPERATORS = [
 ]
 
 @export
-def init(minutes_till_start: int, start_period_minutes: int, minutes_till_end: int, stake_token_contract: str, 
+def init(minutes_to_start: int, minutes_to_lock: int, minutes_to_end: int, stake_token_contract: str, 
          pre_funding_token_contract: str = '', pre_funding_token_amount: float = 0, early_unstake_tax: float = 5):
+
+    minutes_to_start = int(minutes_to_start)
+    minutes_to_lock = int(minutes_to_lock)
+    minutes_to_end = int(minutes_to_end)
+
+    pre_funding_token_amount = decimal(pre_funding_token_amount)
+    early_unstake_tax = decimal(early_unstake_tax)
+
+    sc = I.import_module(stake_token_contract)
 
     if pre_funding_token_contract:
         assert pre_funding_token_amount > 0, 'Pre-funding token amount must be > 0'
+        fc = I.import_module(pre_funding_token_contract)
     if pre_funding_token_amount:
         assert pre_funding_token_amount > 0, 'Pre-funding token amount must be > 0'
         assert pre_funding_token_contract, 'Pre-funding token contract must be set'
@@ -46,8 +55,8 @@ def init(minutes_till_start: int, start_period_minutes: int, minutes_till_end: i
     if stake_token_contract.lower() in ['currency', 'con_nebula']:
         assert_owner('This staking token can only be used by the Nebula team')
 
-    total_stake.set(0)
-    total_emission.set(0)
+    total_stake.set(decimal(0))
+    total_emission.set(decimal(0))
 
     funding_contract.set(pre_funding_token_contract)
     funding_amount.set(pre_funding_token_amount)
@@ -55,9 +64,9 @@ def init(minutes_till_start: int, start_period_minutes: int, minutes_till_end: i
     stake_contract.set(stake_token_contract)
     unstake_tax.set(early_unstake_tax)
 
-    start_date.set(now + datetime.timedelta(minutes=minutes_till_start))
-    start_end_date.set(start_date.get() + datetime.timedelta(minutes=start_period_minutes))
-    end_date.set(start_end_date.get() + datetime.timedelta(minutes=minutes_till_end))
+    start_date.set(now + datetime.timedelta(minutes=minutes_to_start))
+    lock_date.set(start_date.get() + datetime.timedelta(minutes=minutes_to_lock))
+    end_date.set(lock_date.get() + datetime.timedelta(minutes=minutes_to_end))
 
     if funding_contract.get() and funding_amount.get():
         I.import_module(funding_contract.get()).transfer_from(
@@ -76,9 +85,11 @@ def active(is_active: bool):
 def stake(amount: float):
     assert_active()
 
+    amount = decimal(amount)
+
     assert amount > 0, 'Negative amounts are not allowed'
     assert now > start_date.get(), f'Staking not started yet: {start_date.get()}'
-    assert now < start_end_date.get(), f'Staking already ended: {start_end_date.get()}'
+    assert now < lock_date.get(), f'Staking already ended: {lock_date.get()}'
 
     I.import_module(stake_contract.get()).transfer_from(
         main_account=ctx.caller,
