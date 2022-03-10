@@ -5,7 +5,7 @@
 # | |\  |  __/ |_) | |_| | | (_| | | |____ >  <| ||  __/ |  | | | | (_| | |    \  / (_| | |_| | | |_ 
 # |_| \_|\___|_.__/ \__,_|_|\__,_| |______/_/\_\\__\___|_|  |_| |_|\__,_|_|     \/ \__,_|\__,_|_|\__|
 #
-# Version 1.4
+# Version 1.5
 
 I = importlib
 
@@ -30,13 +30,6 @@ end_date = Variable()
 
 funded = Variable()
 
-NEB_FEE = 2
-NEB_FEE_DISCOUNT = 0.2
-NEB_INSTANT_FEE = 5000
-
-NEB_CONTRACT = 'con_nebula'
-NEB_KEY_CONTRACT = 'con_neb_key001'
-
 MIN_START_TIME = 5
 MAX_START_TIME = 10080
 
@@ -46,12 +39,28 @@ MAX_STAKE_TIME = 10080
 MIN_LOCK_TIME = 1440
 MAX_LOCK_TIME = 518400
 
+NEB_FEE = 2
+NEB_FEE_DISCOUNT = 0.2
+NEB_INSTANT_FEE = 5000
+
+NEB_CONTRACT = 'con_nebula'
+NEB_KEY_CONTRACT = 'con_neb_key001'
+
 @export
 def fund_vault(stake_contract: str, total_stake_amount: float, emission_contract: str, total_emission_amount: float, 
                minutes_till_start: int, start_period_in_minutes: int, minutes_till_end: int, 
                max_single_stake_percent: float, creator_lock_amount: float = 0):
     
     assert funded.get() != True, 'Vault is already funded!'
+
+    total_stake_amount = decimal(total_stake_amount)
+    total_emission_amount = decimal(total_emission_amount)
+    max_single_stake_percent = decimal(max_single_stake_percent)
+    creator_lock_amount = decimal(creator_lock_amount)
+
+    minutes_till_start = int(minutes_till_start)
+    start_period_in_minutes = int(start_period_in_minutes)
+    minutes_till_end = int(minutes_till_end)
 
     assert total_stake_amount > 0, 'Total stake amount must be > 0'
     assert total_emission_amount > 0, 'Total emission amount must be > 0'
@@ -79,7 +88,7 @@ def fund_vault(stake_contract: str, total_stake_amount: float, emission_contract
     creator_addr.set(ctx.caller)
     creator_lock.set(creator_lock_amount)
 
-    current_stake.set(0)
+    current_stake.set(decimal(0))
     total_stake.set(total_stake_amount)
     total_emission.set(total_emission_amount)
     max_single_stake.set(total_stake_amount / 100 * max_single_stake_percent)
@@ -95,7 +104,7 @@ def fund_vault(stake_contract: str, total_stake_amount: float, emission_contract
     else:
         discount = 0
 
-    fee = total_emission.get() / 100 * (NEB_FEE - discount)
+    fee = total_emission.get() / 100 * (decimal(NEB_FEE) - decimal(discount))
     total_amount = total_emission.get() + fee + creator_lock.get()
 
     send_to_vault(emission_con.get(), total_amount)
@@ -122,6 +131,8 @@ def send_to_vault(contract: str, amount: float):
 
 @export
 def stake(amount: float):
+    amount = decimal(amount)
+
     assert amount > 0, 'Negative amounts are not allowed'
     assert now > start_date.get(), f'Staking not started yet: {start_date.get()}'
     assert now < start_date_end.get(), f'Staking period ended: {start_date_end.get()}'
@@ -135,19 +146,14 @@ def stake(amount: float):
 
 @export
 def unstake():
-    assert staking[ctx.caller] != 0, f'Address is not staking!'
+    assert staking[ctx.caller] > 0, f'Address is not staking!'
     assert now > end_date.get(), f'End date not reached: {end_date.get()}'
 
     stake_percent = staking[ctx.caller] / current_stake.get() * 100
     user_emission = total_emission.get() / 100 * stake_percent
 
-    I.import_module(emission_con.get()).transfer(
-        amount=user_emission,
-        to=ctx.caller)
-
-    I.import_module(stake_con.get()).transfer(
-        amount=staking[ctx.caller],
-        to=ctx.caller)
+    I.import_module(emission_con.get()).transfer(amount=user_emission, to=ctx.caller)
+    I.import_module(stake_con.get()).transfer(amount=staking[ctx.caller], to=ctx.caller)
 
     staking[ctx.caller] = 0
     payouts[ctx.caller] = user_emission
@@ -156,13 +162,13 @@ def unstake():
 
 @export
 def payout_only_stake(amount: float):
-    assert staking[ctx.caller] != 0, f'Address is not staking!'
+    amount = decimal(amount)
+
+    assert staking[ctx.caller] > 0, f'Address is not staking!'
     assert now > end_date.get(), f'End date not reached: {end_date.get()}'
     assert amount <= staking[ctx.caller], f'Max unstake amount is {staking[ctx.caller]}'
 
-    I.import_module(stake_con.get()).transfer(
-        amount=amount,
-        to=ctx.caller)
+    I.import_module(stake_con.get()).transfer(amount=amount, to=ctx.caller)
 
     current_stake.set(current_stake.get() - amount)
 
@@ -177,6 +183,4 @@ def pay_back_locked_creator_tokens(pay_to_address: str):
     assert creator_addr.get() == ctx.caller, 'You are not the vault creator!'
     assert creator_lock.get() > 0, 'No creator funds locked!'
 
-    I.import_module(emission_con.get()).transfer(
-        amount=creator_lock.get(),
-        to=pay_to_address)
+    I.import_module(emission_con.get()).transfer(amount=creator_lock.get(), to=pay_to_address)
