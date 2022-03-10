@@ -5,7 +5,7 @@
 # | |\  |  __/ |_) | |_| | | (_| | | |____| |         \  / (_| | |_| | | |_ 
 # |_| \_|\___|_.__/ \__,_|_|\__,_| |______|_|          \/ \__,_|\__,_|_|\__|
 #
-# Version 1.0
+# Version 1.1
 
 I = importlib
 
@@ -30,12 +30,12 @@ def seed():
     con['key'] = 'con_neb_key001'
     con['dex'] = 'con_rocketswap_official_v1_1'
 
-    levels[1] = {'level': 1, 'lp': 0,     'key': 0, 'emission': 0.375}
-    levels[2] = {'level': 2, 'lp': 18.75, 'key': 0, 'emission': 0.75}
-    levels[3] = {'level': 3, 'lp': 0,     'key': 1, 'emission': 1}
-    levels[4] = {'level': 4, 'lp': 37.5,  'key': 0, 'emission': 1.5}
-    levels[5] = {'level': 5, 'lp': 75,    'key': 0, 'emission': 3}
-    levels[6] = {'level': 6, 'lp': 150,   'key': 0, 'emission': 4}
+    levels[1] = {'level': 1, 'lp': decimal(0),     'key': 0, 'emission': decimal(0.375)}
+    levels[2] = {'level': 2, 'lp': decimal(18.75), 'key': 0, 'emission': decimal(0.75)}
+    levels[3] = {'level': 3, 'lp': decimal(0),     'key': 1, 'emission': decimal(1)}
+    levels[4] = {'level': 4, 'lp': decimal(37.5),  'key': 0, 'emission': decimal(1.5)}
+    levels[5] = {'level': 5, 'lp': decimal(75),    'key': 0, 'emission': decimal(3)}
+    levels[6] = {'level': 6, 'lp': decimal(150),   'key': 0, 'emission': decimal(4)}
 
     trusted.set([])
     active.set(True)
@@ -64,6 +64,9 @@ def show_level(address: str):
 def stake(neb_lp_amount: float = 0, neb_key_amount: int = 0):
     assert_active()
 
+    neb_lp_amount = decimal(neb_lp_amount)
+    neb_key_amount = int(neb_key_amount)
+
     assert neb_lp_amount >= 0, 'Negative amounts are not allowed'
     assert neb_key_amount >= 0, 'Negative amounts are not allowed'
 
@@ -89,6 +92,9 @@ def stake(neb_lp_amount: float = 0, neb_key_amount: int = 0):
 @export
 def unstake(neb_lp_amount: float = 0, neb_key_amount: int = 0):
     assert_active()
+
+    neb_lp_amount = decimal(neb_lp_amount)
+    neb_key_amount = int(neb_key_amount)
 
     assert neb_lp_amount >= 0, 'Negative amounts are not allowed'
     assert neb_key_amount >= 0, 'Negative amounts are not allowed'
@@ -168,8 +174,8 @@ def unlock():
     
     locking[user_address] = lock_list
 
-    locking[user_address, vault_contract, 'lp'] = 0
-    locking[user_address, vault_contract, 'key'] = 0
+    locking[user_address, vault_contract, 'lp'] = decimal(0)
+    locking[user_address, vault_contract, 'key'] = int(0)
 
 @export
 def set_contract(key: str, value: str):
@@ -200,8 +206,11 @@ def remove_valid_vault(contract_name: str):
         trusted.set(trusted_contracts)
 
 @export
-def emergency_lock(user_address: str, vault_contract: str, lp_amount: float, key_amount: float):
+def emergency_lock(user_address: str, vault_contract: str, neb_lp_amount: float, neb_key_amount: int):
     assert_owner()
+
+    neb_lp_amount = decimal(neb_lp_amount)
+    neb_key_amount = int(neb_key_amount)
 
     if not isinstance(locking[user_address], list):
         locking[user_address] = []
@@ -213,8 +222,8 @@ def emergency_lock(user_address: str, vault_contract: str, lp_amount: float, key
 
     locking[user_address] = lock_list
 
-    locking[user_address, vault_contract, 'lp'] = lp_amount
-    locking[user_address, vault_contract, 'key'] = key_amount
+    locking[user_address, vault_contract, 'lp'] = neb_lp_amount
+    locking[user_address, vault_contract, 'key'] = neb_key_amount
 
 @export
 def emergency_unlock(user_address: str, vault_contract: str):
@@ -227,8 +236,8 @@ def emergency_unlock(user_address: str, vault_contract: str):
     
     locking[user_address] = lock_list
 
-    locking[user_address, vault_contract, 'lp'] = 0
-    locking[user_address, vault_contract, 'key'] = 0
+    locking[user_address, vault_contract, 'lp'] = decimal(0)
+    locking[user_address, vault_contract, 'key'] = int(0)
 
 @export
 def emergency_withdraw_token(contract_name: str, amount: float):
