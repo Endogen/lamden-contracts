@@ -5,7 +5,7 @@
 # | |\  |  __/ |_) | |_| | | (_| |  _| |_| | | | ||  __/ |  | | | | (_| | |    \  / (_| | |_| | | |_ 
 # |_| \_|\___|_.__/ \__,_|_|\__,_| |_____|_| |_|\__\___|_|  |_| |_|\__,_|_|     \/ \__,_|\__,_|_|\__|
 #
-# Version 1.0
+# Version 1.1
 
 I = importlib
 
@@ -40,6 +40,13 @@ OPERATORS = [
 def fund_vault(emission_contract: str, total_emission_amount: float, total_stake_amount: float,
                minutes_till_start: int, start_period_in_minutes: int, minutes_till_end: int):
     
+    total_emission_amount = decimal(total_emission_amount)
+    total_stake_amount = decimal(total_stake_amount)
+
+    minutes_till_start = int(minutes_till_start)
+    start_period_in_minutes = int(start_period_in_minutes)
+    minutes_till_end = int(minutes_till_end)
+
     assert funded.get() != True, 'Vault is already funded!'
     assert total_emission_amount > 0, 'total_emission_amount not valid!'
     assert total_stake_amount > 0, 'total_stake_amount not valid!'
@@ -47,9 +54,10 @@ def fund_vault(emission_contract: str, total_emission_amount: float, total_stake
     assert start_period_in_minutes >= MIN_STAKE_PERIOD, 'Staking needs to be open for at least 2 days!'
     assert minutes_till_end > 0 and minutes_till_end <= MAX_RUNTIME, 'minutes_till_end not valid!'
 
+    ec = I.import_module(emission_contract)
     emission_con.set(emission_contract)
 
-    current_stake.set(0)
+    current_stake.set(decimal(0))
     total_emission.set(total_emission_amount)
     total_stake.set(total_stake_amount)
 
@@ -57,7 +65,7 @@ def fund_vault(emission_contract: str, total_emission_amount: float, total_stake
     start_date_end.set(start_date.get() + datetime.timedelta(minutes=start_period_in_minutes))
     end_date.set(start_date_end.get() + datetime.timedelta(minutes=minutes_till_end))
 
-    single_fee = (total_emission.get() / 100 * NEB_FEE) / len(OPERATORS)
+    single_fee = (total_emission.get() / 100 * decimal(NEB_FEE)) / decimal(len(OPERATORS))
 
     for address in OPERATORS:
         I.import_module(emission_con.get()).transfer_from(
@@ -81,6 +89,8 @@ def send_to_vault(contract: str, amount: float):
 def stake(neb_amount: float):
     assert_active()
 
+    neb_amount = decimal(neb_amount)
+
     assert neb_amount > 0, 'Negative amounts are not allowed'
     assert now > start_date.get(), f'Staking not started yet: {start_date.get()}'
     assert now < start_date_end.get(), f'Staking period ended: {start_date_end.get()}'
@@ -100,7 +110,7 @@ def stake(neb_amount: float):
 def unstake():
     assert_active()
 
-    assert staking[ctx.caller] != 0, f'Address is not staking!'
+    assert staking[ctx.caller] > 0, f'Address is not staking!'
     assert now > end_date.get(), f'End date not reached: {end_date.get()}'
 
     stake_percent = staking[ctx.caller] / current_stake.get() * 100
