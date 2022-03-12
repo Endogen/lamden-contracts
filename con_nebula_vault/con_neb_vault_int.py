@@ -5,12 +5,12 @@
 # | |\  |  __/ |_) | |_| | | (_| |  _| |_| | | | ||  __/ |  | | | | (_| | |    \  / (_| | |_| | | |_ 
 # |_| \_|\___|_.__/ \__,_|_|\__,_| |_____|_| |_|\__\___|_|  |_| |_|\__,_|_|     \/ \__,_|\__,_|_|\__|
 #
-# Version 1.1
+# Version 1.2
 
 I = importlib
 
-staking = Hash(default_value=0)
-payouts = Hash(default_value=0)
+staking = Hash(default_value=0.0)
+payouts = Hash(default_value=0.0)
 
 emission_con = Variable()
 total_emission = Variable()
@@ -39,13 +39,12 @@ OPERATORS = [
 @export
 def fund_vault(emission_contract: str, total_emission_amount: float, total_stake_amount: float,
                minutes_till_start: int, start_period_in_minutes: int, minutes_till_end: int):
-    
-    total_emission_amount = decimal(total_emission_amount)
-    total_stake_amount = decimal(total_stake_amount)
 
-    minutes_till_start = int(minutes_till_start)
-    start_period_in_minutes = int(start_period_in_minutes)
-    minutes_till_end = int(minutes_till_end)
+    assert isinstance(total_emission_amount, decimal), 'Type of total_emission_amount must be float'
+    assert isinstance(total_stake_amount, decimal), 'Type of total_stake_amount must be float'
+    assert isinstance(minutes_till_start, int), 'Type of minutes_till_start must be int'
+    assert isinstance(start_period_in_minutes, int), 'Type of start_period_in_minutes must be int'
+    assert isinstance(minutes_till_end, int), 'Type of minutes_till_end must be int'
 
     assert funded.get() != True, 'Vault is already funded!'
     assert total_emission_amount > 0, 'total_emission_amount not valid!'
@@ -89,9 +88,8 @@ def send_to_vault(contract: str, amount: float):
 def stake(neb_amount: float):
     assert_active()
 
-    neb_amount = decimal(neb_amount)
-
     assert neb_amount > 0, 'Negative amounts are not allowed'
+    assert isinstance(neb_amount, decimal), 'Type of neb_amount must be float'
     assert now > start_date.get(), f'Staking not started yet: {start_date.get()}'
     assert now < start_date_end.get(), f'Staking period ended: {start_date_end.get()}'
 
@@ -126,7 +124,7 @@ def unstake():
 
     I.import_module(LP_VAULT).unlock()
 
-    staking[ctx.caller] = 0
+    staking[ctx.caller] = decimal(0)
     payouts[ctx.caller] = user_emission
 
     return f'Emission: {user_emission} {emission_con.get()}'
