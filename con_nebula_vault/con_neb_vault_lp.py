@@ -5,7 +5,7 @@
 # | |\  |  __/ |_) | |_| | | (_| | | |____| |         \  / (_| | |_| | | |_ 
 # |_| \_|\___|_.__/ \__,_|_|\__,_| |______|_|          \/ \__,_|\__,_|_|\__|
 #
-# Version 1.1
+# Version 1.2
 
 I = importlib
 
@@ -64,9 +64,8 @@ def show_level(address: str):
 def stake(neb_lp_amount: float = 0, neb_key_amount: int = 0):
     assert_active()
 
-    neb_lp_amount = decimal(neb_lp_amount)
-    neb_key_amount = int(neb_key_amount)
-
+    assert isinstance(neb_lp_amount, decimal), 'Type of neb_lp_amount must be float'
+    assert isinstance(neb_key_amount, int), 'Type of neb_key_amount must be int'
     assert neb_lp_amount >= 0, 'Negative amounts are not allowed'
     assert neb_key_amount >= 0, 'Negative amounts are not allowed'
 
@@ -93,9 +92,8 @@ def stake(neb_lp_amount: float = 0, neb_key_amount: int = 0):
 def unstake(neb_lp_amount: float = 0, neb_key_amount: int = 0):
     assert_active()
 
-    neb_lp_amount = decimal(neb_lp_amount)
-    neb_key_amount = int(neb_key_amount)
-
+    assert isinstance(neb_lp_amount, decimal), 'Type of neb_lp_amount must be float'
+    assert isinstance(neb_key_amount, int), 'Type of neb_key_amount must be int'
     assert neb_lp_amount >= 0, 'Negative amounts are not allowed'
     assert neb_key_amount >= 0, 'Negative amounts are not allowed'
 
@@ -209,8 +207,8 @@ def remove_valid_vault(contract_name: str):
 def emergency_lock(user_address: str, vault_contract: str, neb_lp_amount: float, neb_key_amount: int):
     assert_owner()
 
-    neb_lp_amount = decimal(neb_lp_amount)
-    neb_key_amount = int(neb_key_amount)
+    assert isinstance(neb_lp_amount, decimal), 'Type of neb_lp_amount must be float'
+    assert isinstance(neb_key_amount, int), 'Type of neb_key_amount must be int'
 
     if not isinstance(locking[user_address], list):
         locking[user_address] = []
