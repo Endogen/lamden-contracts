@@ -5,12 +5,12 @@
 # | |\  |  __/ |_) | |_| | | (_| |  ____) | |_| | |   \ V /| |\ V / (_) | |       \  / (_| | |_| | | |_ 
 # |_| \_|\___|_.__/ \__,_|_|\__,_| |_____/ \__,_|_|    \_/ |_| \_/ \___/|_|        \/ \__,_|\__,_|_|\__|
 #
-# Version 1.1
+# Version 1.2
 
 I = importlib
 
-staking = Hash(default_value=0)
-payouts = Hash(default_value=0)
+staking = Hash(default_value=0.0)
+payouts = Hash(default_value=0.0)
 
 start_date = Variable()
 lock_date = Variable()
@@ -36,12 +36,11 @@ OPERATORS = [
 def init(minutes_to_start: int, minutes_to_lock: int, minutes_to_end: int, stake_token_contract: str, 
          pre_funding_token_contract: str = '', pre_funding_token_amount: float = 0, early_unstake_tax: float = 5):
 
-    minutes_to_start = int(minutes_to_start)
-    minutes_to_lock = int(minutes_to_lock)
-    minutes_to_end = int(minutes_to_end)
-
-    pre_funding_token_amount = decimal(pre_funding_token_amount)
-    early_unstake_tax = decimal(early_unstake_tax)
+    assert isinstance(pre_funding_token_amount, decimal), 'Type of pre_funding_token_amount must be float'
+    assert isinstance(early_unstake_tax, decimal), 'Type of early_unstake_tax must be float'
+    assert isinstance(minutes_to_start, int), 'Type of minutes_to_start must be int'
+    assert isinstance(minutes_to_lock, int), 'Type of minutes_to_lock must be int'
+    assert isinstance(minutes_to_end, int), 'Type of minutes_to_end must be int'
 
     sc = I.import_module(stake_token_contract)
 
@@ -85,9 +84,8 @@ def active(is_active: bool):
 def stake(amount: float):
     assert_active()
 
-    amount = decimal(amount)
-
     assert amount > 0, 'Negative amounts are not allowed'
+    assert isinstance(amount, decimal), 'Type of amount must be float'
     assert now > start_date.get(), f'Staking not started yet: {start_date.get()}'
     assert now < lock_date.get(), f'Staking already ended: {lock_date.get()}'
 
@@ -137,7 +135,7 @@ def unstake():
             amount=payouts[ctx.caller, stake_contract.get()],
             to=ctx.caller)
 
-    staking[ctx.caller] = 0
+    staking[ctx.caller] = decimal(0)
 
     stake_payout = payouts[ctx.caller, stake_contract.get()]
     funding_payout = payouts[ctx.caller, funding_contract.get()]
