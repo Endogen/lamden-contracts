@@ -5,12 +5,12 @@
 # | |\  |  __/ |_) | |_| | | (_| | | |____ >  <| ||  __/ |  | | | | (_| | |    \  / (_| | |_| | | |_ 
 # |_| \_|\___|_.__/ \__,_|_|\__,_| |______/_/\_\\__\___|_|  |_| |_|\__,_|_|     \/ \__,_|\__,_|_|\__|
 #
-# Version 1.5
+# Version 1.6
 
 I = importlib
 
-staking = Hash(default_value=0)
-payouts = Hash(default_value=0)
+staking = Hash(default_value=0.0)
+payouts = Hash(default_value=0.0)
 
 stake_con = Variable()
 emission_con = Variable()
@@ -49,18 +49,17 @@ NEB_KEY_CONTRACT = 'con_neb_key001'
 @export
 def fund_vault(stake_contract: str, total_stake_amount: float, emission_contract: str, total_emission_amount: float, 
                minutes_till_start: int, start_period_in_minutes: int, minutes_till_end: int, 
-               max_single_stake_percent: float, creator_lock_amount: float = 0):
+               max_single_stake_percent: float, creator_lock_amount: float = 0.0):
     
     assert funded.get() != True, 'Vault is already funded!'
-
-    total_stake_amount = decimal(total_stake_amount)
-    total_emission_amount = decimal(total_emission_amount)
-    max_single_stake_percent = decimal(max_single_stake_percent)
-    creator_lock_amount = decimal(creator_lock_amount)
-
-    minutes_till_start = int(minutes_till_start)
-    start_period_in_minutes = int(start_period_in_minutes)
-    minutes_till_end = int(minutes_till_end)
+    
+    assert isinstance(total_stake_amount, decimal), 'Type of total_stake_amount must be float'
+    assert isinstance(total_emission_amount, decimal), 'Type of total_emission_amount must be float'
+    assert isinstance(max_single_stake_percent, decimal), 'Type of max_single_stake_percent must be float'
+    assert isinstance(creator_lock_amount, decimal), 'Type of creator_lock_amount must be float'
+    assert isinstance(minutes_till_start, int), 'Type of minutes_till_start must be int'
+    assert isinstance(start_period_in_minutes, int), 'Type of start_period_in_minutes must be int'
+    assert isinstance(minutes_till_end, int), 'Type of minutes_till_end must be int'
 
     assert total_stake_amount > 0, 'Total stake amount must be > 0'
     assert total_emission_amount > 0, 'Total emission amount must be > 0'
@@ -131,9 +130,8 @@ def send_to_vault(contract: str, amount: float):
 
 @export
 def stake(amount: float):
-    amount = decimal(amount)
-
     assert amount > 0, 'Negative amounts are not allowed'
+    assert isinstance(amount, decimal), 'amount must be a float'
     assert now > start_date.get(), f'Staking not started yet: {start_date.get()}'
     assert now < start_date_end.get(), f'Staking period ended: {start_date_end.get()}'
 
@@ -155,16 +153,15 @@ def unstake():
     I.import_module(emission_con.get()).transfer(amount=user_emission, to=ctx.caller)
     I.import_module(stake_con.get()).transfer(amount=staking[ctx.caller], to=ctx.caller)
 
-    staking[ctx.caller] = 0
+    staking[ctx.caller] = decimal(0)
     payouts[ctx.caller] = user_emission
 
     return f'Emission: {user_emission} {emission_con.get()}'
 
 @export
 def payout_only_stake(amount: float):
-    amount = decimal(amount)
-
     assert staking[ctx.caller] > 0, f'Address is not staking!'
+    assert isinstance(amount, decimal), 'amount must be a float'
     assert now > end_date.get(), f'End date not reached: {end_date.get()}'
     assert amount <= staking[ctx.caller], f'Max unstake amount is {staking[ctx.caller]}'
 
@@ -173,7 +170,7 @@ def payout_only_stake(amount: float):
     current_stake.set(current_stake.get() - amount)
 
     staking[ctx.caller] -= amount
-    payouts[ctx.caller] = 0
+    payouts[ctx.caller] = decimal(0)
 
     return f'Remaining Stake: {staking[ctx.caller]} {stake_con.get()}'
 
