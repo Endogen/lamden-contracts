@@ -5,7 +5,7 @@
 # | |\  |  __/ |_) | |_| | | (_| | | |____ >  <| ||  __/ |  | | | | (_| | |    \  / (_| | |_| | | |_ 
 # |_| \_|\___|_.__/ \__,_|_|\__,_| |______/_/\_\\__\___|_|  |_| |_|\__,_|_|     \/ \__,_|\__,_|_|\__|
 #
-# Version 1.6
+# Version 1.7
 
 I = importlib
 
@@ -131,7 +131,7 @@ def send_to_vault(contract: str, amount: float):
 @export
 def stake(amount: float):
     assert amount > 0, 'Negative amounts are not allowed'
-    assert isinstance(amount, decimal), 'amount must be a float'
+    assert isinstance(amount, decimal), 'Type of amount must be float'
     assert now > start_date.get(), f'Staking not started yet: {start_date.get()}'
     assert now < start_date_end.get(), f'Staking period ended: {start_date_end.get()}'
 
@@ -161,7 +161,7 @@ def unstake():
 @export
 def payout_only_stake(amount: float):
     assert staking[ctx.caller] > 0, f'Address is not staking!'
-    assert isinstance(amount, decimal), 'amount must be a float'
+    assert isinstance(amount, decimal), 'Type of amount must be float'
     assert now > end_date.get(), f'End date not reached: {end_date.get()}'
     assert amount <= staking[ctx.caller], f'Max unstake amount is {staking[ctx.caller]}'
 
